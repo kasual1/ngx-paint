@@ -10,6 +10,7 @@ import { HuePickerComponent } from './hue-picker.component';
     <div #dragBoundary class="drag-boundary">
       <div #colorPalette class="color-palette" [style.background]="colorPaletteBackground">
         <div
+          #drag
           cdkDrag
           class="drag"
           cdkDragBoundary=".drag-boundary"
@@ -21,17 +22,26 @@ import { HuePickerComponent } from './hue-picker.component';
     <div style="padding: 12px">
     <ngx-paint-hue-picker (hueChange)="onHueChange($event)"></ngx-paint-hue-picker>
 
-    <pre>HSL: {{ hslColor }}</pre>
+    <pre>x:{{ x }} y:{{ y }}</pre>
+
+    <pre>HSV: {{ hsvColor }}</pre>
+
+    <pre>RGB: {{ rgbColor }}</pre>
+
+    <pre>Hex: {{ hexColor }}</pre>
+
+
     </div>
   `,
   styles: `
     :host{
       display: flex;
       flex-direction: column;
+      width: 300px;
     }
 
     .drag-boundary {
-      padding: 12px;
+      padding: 14px;
     }
 
     .drag {
@@ -54,7 +64,7 @@ import { HuePickerComponent } from './hue-picker.component';
 
     .color-palette {
       width: 100%;
-      height: 355px;
+      height: 200px;
       max-width: 100%;
     }
   `,
@@ -62,6 +72,9 @@ import { HuePickerComponent } from './hue-picker.component';
 export class ColorPickerPanelComponent {
   @ViewChild('dragBoundary')
   dragBoundary!: ElementRef<HTMLElement>;
+
+  @ViewChild('drag')
+  drag!: ElementRef<HTMLElement>;
 
   @ViewChild('colorPalette')
   colorPalette!: ElementRef<HTMLElement>;
@@ -74,7 +87,7 @@ export class ColorPickerPanelComponent {
 
   saturation = 0;
 
-  lightness = 0;
+  value = 0;
 
   get colorPaletteBackground() {
     return `linear-gradient(to bottom, transparent, black) no-repeat,
@@ -82,21 +95,56 @@ export class ColorPickerPanelComponent {
             hsl(${this.hue}, 100%, 50%)`;
   }
 
-  get hslColor(): string {
-    return `hsl(${this.hue}, ${this.saturation}%, ${this.lightness}%)`;
+
+  get hsvColor(): string {
+    return `hsv(${this.hue}, ${this.saturation}%, ${this.value}%)`;
+  }
+
+  get rgbColor(): string {
+    const {r, g, b} = this.hsvToRgb(this.hue, this.saturation, this.value);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  get hexColor(): string {
+    const {r, g, b} = this.hsvToRgb(this.hue, this.saturation, this.value);
+    return this.rgbToHex(r, g, b);
   }
 
 
   onDragMoved(event: CdkDragMove) {
     const dragPosition = event.source.getFreeDragPosition();
     const boundaryRef = this.dragBoundary.nativeElement;
+    const colorPaletteRef = this.colorPalette.nativeElement;
+
     this.x = dragPosition.x - boundaryRef.offsetLeft;
     this.y = dragPosition.y - boundaryRef.offsetTop;
 
-    this.saturation = Math.trunc((this.x / boundaryRef.offsetWidth) * 100);
-    this.lightness = Math.trunc(100 - (this.y / boundaryRef.offsetHeight) * 100);
-    console.log(this.x, boundaryRef.offsetWidth);
+    this.saturation = Math.trunc(100 * this.x / colorPaletteRef.offsetWidth);
+    this.value = Math.trunc(100 * (1 - (this.y  / colorPaletteRef.offsetHeight)));
   }
+
+  hsvToRgb(h: number, s: number, v: number) {
+    s /= 100;
+    v /= 100;
+
+    const i = ~~(h / 60);
+    const f = h / 60 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - s * f);
+    const t = v * (1 - s * (1 - f));
+    const index = i % 6;
+
+    const r = Math.trunc([v, q, p, p, t, v][index] * 255);
+    const g = Math.trunc([t, v, v, q, p, p][index] * 255);
+    const b = Math.trunc([p, p, t, v, v, q][index] * 255);
+    return { r, g, b };
+  }
+
+  rgbToHex(r: number, g: number, b: number, a: number = 1) {
+    const [rr, gg, bb, aa] = [r, g, b, Math.round(a * 255)].map((v) => v.toString(16).padStart(2, "0"));
+    return ["#", rr, gg, bb, aa === "ff" ? "" : aa].join("");
+  }
+
 
   onHueChange(hue: number) {
     this.hue = hue;
