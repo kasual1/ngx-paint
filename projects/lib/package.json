@@ -1,6 +1,9 @@
 {
-  "name": "lib",
-  "version": "0.0.1",
+  "name": "ngx-paint",
+  "author": {
+    "name": "Lukas Mühlenbeck"
+  },
+  "version": "0.0.2",
   "peerDependencies": {
     "@angular/common": "^17.3.0",
     "@angular/core": "^17.3.0"

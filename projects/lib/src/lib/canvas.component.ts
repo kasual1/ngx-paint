@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   ViewChild,
+  ViewEncapsulation,
 } from '@angular/core';
 import { Brush } from './brushes/brush.model';
 import { LineBrush } from './brushes/line-brush.class';
@@ -13,6 +14,7 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'ngx-paint',
   standalone: true,
+  encapsulation: ViewEncapsulation.None,
   imports: [ActionPanelComponent, CommonModule],
   template: `
     <link

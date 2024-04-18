@@ -1,15 +1,16 @@
 import { Component, EventEmitter, Output } from '@angular/core';
+import { ColorPickerComponent } from './color-picker.component';
 
 @Component({
   selector: 'ngx-paint-action-panel',
   standalone: true,
-  imports: [],
+  imports: [ColorPickerComponent],
   template: `
     <button>
       <span class="material-symbols-outlined">brush</span>
     </button>
 
-    <div class="color-picker"></div>
+    <ngx-paint-color-picker></ngx-paint-color-picker>
 
     <div class="divider"></div>
 
@@ -43,19 +44,6 @@ import { Component, EventEmitter, Output } from '@angular/core';
 
       &:hover {
         background-color: #f8f8f8;
-        border-color: #aaa;
-        cursor: pointer;
-      }
-    }
-
-    .color-picker{
-      background-color: red;
-      height: 40px;
-      width: 40px;
-      border-radius: 50%;
-      border: 1px solid #ccc;
-
-      &:hover {
         border-color: #aaa;
         cursor: pointer;
       }
