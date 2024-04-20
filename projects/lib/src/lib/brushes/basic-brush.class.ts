@@ -17,4 +17,8 @@ export class BasicBrush implements Brush {
   reset(): void {
     // Nothing to reset for a basic brush
   }
+
+  setColor(color: string): void {
+    this.color = color;
+  }
 }

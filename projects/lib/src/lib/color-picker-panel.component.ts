@@ -74,6 +74,7 @@ import { ColorService } from './color.service';
 
     .drag:active {
       border: 2px solid rgb(203 213 225);
+      z-index: 1;
     }
 
     .color-palette {
@@ -88,7 +89,7 @@ import { ColorService } from './color.service';
     .color-picker-control-panel {
       padding: 12px;
       margin: -14px 14px;
-      background-color: rgba(255, 255, 255, 0.85);
+      background-color: rgba(240, 240, 240, 0.85);
       backdrop-filter: blur(10px);
       border-bottom-left-radius: 12px;
       border-bottom-right-radius: 12px;

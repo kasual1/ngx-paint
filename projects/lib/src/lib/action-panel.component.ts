@@ -10,7 +10,7 @@ import { ColorPickerComponent } from './color-picker.component';
       <span class="material-symbols-outlined">brush</span>
     </button>
 
-    <ngx-paint-color-picker></ngx-paint-color-picker>
+    <ngx-paint-color-picker (colorChange)="onColorChange($event)"></ngx-paint-color-picker>
 
     <div class="divider"></div>
 
@@ -58,6 +58,9 @@ import { ColorPickerComponent } from './color-picker.component';
 })
 export class ActionPanelComponent {
   @Output()
+  colorChange = new EventEmitter<string>();
+
+  @Output()
   undo = new EventEmitter<void>();
 
   @Output()
@@ -69,5 +72,9 @@ export class ActionPanelComponent {
 
   onRedo() {
     this.redo.emit();
+  }
+
+  onColorChange(color: string) {
+    this.colorChange.emit(color);
   }
 }

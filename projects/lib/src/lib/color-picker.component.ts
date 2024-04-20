@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { ColorPickerPanelComponent } from './color-picker-panel.component';
 
@@ -8,8 +8,8 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
   imports: [OverlayModule, ColorPickerPanelComponent],
   template: `
     <div
-      #trigger="cdkOverlayOrigin"
       cdkOverlayOrigin
+      #trigger="cdkOverlayOrigin"
       class="selected-color"
       [style.background]="color"
       (click)="isOpen = !isOpen"
@@ -19,8 +19,22 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
       cdkConnectedOverlay
       [cdkConnectedOverlayOrigin]="trigger"
       [cdkConnectedOverlayOpen]="isOpen"
+      [cdkConnectedOverlayOffsetY]="-12"
+      [cdkConnectedOverlayOffsetX]="16"
+      [cdkConnectedOverlayPositions]="[
+        {
+          originX: 'end',
+          originY: 'top',
+          overlayX: 'start',
+          overlayY: 'top'
+        }
+      ]"
+
     >
-      <ngx-paint-color-picker-panel [color]="color" (colorChange)="onColorChange($event)"></ngx-paint-color-picker-panel>
+      <ngx-paint-color-picker-panel
+        [color]="color"
+        (colorChange)="onColorChange($event)"
+      ></ngx-paint-color-picker-panel>
     </ng-template>
   `,
   styles: `
@@ -42,11 +56,15 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
   `,
 })
 export class ColorPickerComponent {
+  @Output()
+  colorChange = new EventEmitter<string>();
+
   isOpen = false;
 
   color: string = '#ffffff';
 
   onColorChange(color: string) {
     this.color = color;
+    this.colorChange.emit(this.color);
   }
 }

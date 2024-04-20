@@ -19,4 +19,8 @@ export class CircleBrush implements Brush {
   reset(): void {
     // Nothing to reset for a circle brush
   }
+
+  setColor(color: string): void {
+    this.color = color;
+  }
 }

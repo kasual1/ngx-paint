@@ -31,4 +31,8 @@ export class LineBrush implements Brush {
     this.prevX = null;
     this.prevY = null;
   }
+
+  setColor(color: string): void {
+    this.color = color;
+  }
 }

@@ -25,6 +25,7 @@ import { CommonModule } from '@angular/common';
     <canvas #canvas></canvas>
 
     <ngx-paint-action-panel
+      (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"
     ></ngx-paint-action-panel>
@@ -74,7 +75,7 @@ export class CanvasComponent implements AfterViewInit {
 
   selectedBrush: Brush = this.lineBrush;
 
-  currentPolyline: { x: number; y: number }[] = [];
+  currentPolyline: { x: number; y: number, color: string }[] = [];
 
   undoStack: any[] = [];
   redoStack: any[] = [];
@@ -109,7 +110,7 @@ export class CanvasComponent implements AfterViewInit {
     if (this.context) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({ x, y });
+      this.currentPolyline.push({ x, y, color: this.selectedBrush.color });
       this.selectedBrush.draw(this.context, x, y);
     }
   }
@@ -118,7 +119,7 @@ export class CanvasComponent implements AfterViewInit {
     if (event.buttons === 1 && this.context) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({ x, y });
+      this.currentPolyline.push({ x, y, color: this.selectedBrush.color });
       this.selectedBrush.draw(this.context, x, y);
     }
   }
@@ -133,6 +134,10 @@ export class CanvasComponent implements AfterViewInit {
 
   setSelectedBrush(brush: Brush) {
     this.selectedBrush = brush;
+  }
+
+  onColorChange(color: string) {
+    this.selectedBrush.setColor(color);
   }
 
   onUndo() {
@@ -158,6 +163,7 @@ export class CanvasComponent implements AfterViewInit {
 
     for (const polyline of this.undoStack) {
       for (let i = 0; i < polyline.length; i++) {
+        this.selectedBrush.setColor(polyline[i].color);
         this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
       }
       this.selectedBrush.reset();
