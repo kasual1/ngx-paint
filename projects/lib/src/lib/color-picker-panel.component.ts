@@ -1,6 +1,15 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  ViewChild,
+} from '@angular/core';
 import { CdkDrag, CdkDragMove } from '@angular/cdk/drag-drop';
 import { HuePickerComponent } from './hue-picker.component';
+import { ColorService } from './color.service';
 
 @Component({
   selector: 'ngx-paint-color-picker-panel',
@@ -8,29 +17,34 @@ import { HuePickerComponent } from './hue-picker.component';
   imports: [CdkDrag, HuePickerComponent],
   template: `
     <div #dragBoundary class="drag-boundary">
-      <div #colorPalette class="color-palette" [style.background]="colorPaletteBackground">
+      <div
+        #colorPalette
+        class="color-palette"
+        [style.background]="colorPaletteBackground"
+      >
         <div
           #drag
           cdkDrag
           class="drag"
           cdkDragBoundary=".drag-boundary"
+          [style.background]="hexColor"
           (cdkDragMoved)="onDragMoved($event)"
         ></div>
       </div>
     </div>
 
-    <div style="padding: 12px">
-    <ngx-paint-hue-picker (hueChange)="onHueChange($event)"></ngx-paint-hue-picker>
+    <div class="color-picker-control-panel">
+      <ngx-paint-hue-picker
+        (hueChange)="onHueChange($event)"
+      ></ngx-paint-hue-picker>
 
-    <pre>x:{{ x }} y:{{ y }}</pre>
+      <pre>x:{{ x }} y:{{ y }}</pre>
 
-    <pre>HSV: {{ hsvColor }}</pre>
+      <pre>HSV: {{ hsvColor }}</pre>
 
-    <pre>RGB: {{ rgbColor }}</pre>
+      <pre>RGB: {{ rgbColor }}</pre>
 
-    <pre>Hex: {{ hexColor }}</pre>
-
-
+      <pre>Hex: {{ hexColor }}</pre>
     </div>
   `,
   styles: `
@@ -59,17 +73,36 @@ import { HuePickerComponent } from './hue-picker.component';
     }
 
     .drag:active {
-      border: 2px solid red;
+      border: 2px solid rgb(203 213 225);
     }
 
     .color-palette {
       width: 100%;
       height: 200px;
       max-width: 100%;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1), 2px 0 4px rgba(0, 0, 0, 0.1), -2px 0 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .color-picker-control-panel {
+      padding: 12px;
+      margin: -14px 14px;
+      background-color: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(10px);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 2px 0 4px rgba(0, 0, 0, 0.1), -2px 0 4px rgba(0, 0, 0, 0.1);
     }
   `,
 })
-export class ColorPickerPanelComponent {
+export class ColorPickerPanelComponent implements OnInit {
+  @Input()
+  color = '';
+
+  @Output()
+  colorChange = new EventEmitter<string>();
+
   @ViewChild('dragBoundary')
   dragBoundary!: ElementRef<HTMLElement>;
 
@@ -95,21 +128,39 @@ export class ColorPickerPanelComponent {
             hsl(${this.hue}, 100%, 50%)`;
   }
 
-
   get hsvColor(): string {
     return `hsv(${this.hue}, ${this.saturation}%, ${this.value}%)`;
   }
 
   get rgbColor(): string {
-    const {r, g, b} = this.hsvToRgb(this.hue, this.saturation, this.value);
+    const { r, g, b } = this.colorService.hsvToRgb(
+      this.hue,
+      this.saturation,
+      this.value
+    );
     return `rgb(${r}, ${g}, ${b})`;
   }
 
   get hexColor(): string {
-    const {r, g, b} = this.hsvToRgb(this.hue, this.saturation, this.value);
-    return this.rgbToHex(r, g, b);
+    const { r, g, b } = this.colorService.hsvToRgb(
+      this.hue,
+      this.saturation,
+      this.value
+    );
+    return this.colorService.rgbToHex(r, g, b);
   }
 
+  constructor(private colorService: ColorService) {}
+
+  ngOnInit(): void {
+    if (this.color) {
+      const { h, s, v } = this.colorService.hexToHsv(this.color);
+
+      this.hue = h;
+      this.saturation = s;
+      this.value = v;
+    }
+  }
 
   onDragMoved(event: CdkDragMove) {
     const dragPosition = event.source.getFreeDragPosition();
@@ -119,34 +170,14 @@ export class ColorPickerPanelComponent {
     this.x = dragPosition.x - boundaryRef.offsetLeft;
     this.y = dragPosition.y - boundaryRef.offsetTop;
 
-    this.saturation = Math.trunc(100 * this.x / colorPaletteRef.offsetWidth);
-    this.value = Math.trunc(100 * (1 - (this.y  / colorPaletteRef.offsetHeight)));
+    this.saturation = Math.trunc((100 * this.x) / colorPaletteRef.offsetWidth);
+    this.value = Math.trunc(100 * (1 - this.y / colorPaletteRef.offsetHeight));
+
+    this.colorChange.emit(this.hexColor);
   }
-
-  hsvToRgb(h: number, s: number, v: number) {
-    s /= 100;
-    v /= 100;
-
-    const i = ~~(h / 60);
-    const f = h / 60 - i;
-    const p = v * (1 - s);
-    const q = v * (1 - s * f);
-    const t = v * (1 - s * (1 - f));
-    const index = i % 6;
-
-    const r = Math.trunc([v, q, p, p, t, v][index] * 255);
-    const g = Math.trunc([t, v, v, q, p, p][index] * 255);
-    const b = Math.trunc([p, p, t, v, v, q][index] * 255);
-    return { r, g, b };
-  }
-
-  rgbToHex(r: number, g: number, b: number, a: number = 1) {
-    const [rr, gg, bb, aa] = [r, g, b, Math.round(a * 255)].map((v) => v.toString(16).padStart(2, "0"));
-    return ["#", rr, gg, bb, aa === "ff" ? "" : aa].join("");
-  }
-
 
   onHueChange(hue: number) {
     this.hue = hue;
+    this.colorChange.emit(this.hexColor);
   }
 }

@@ -13,6 +13,18 @@
           "flat": true,
           "inlineStyle": true,
           "inlineTemplate": true
+        },
+        "@schematics/angular:service": {
+          "flat": true,
+          "skipTests": true
+        },
+        "@schematics/angular:directive": {
+          "flat": true,
+          "skipTests": true
+        },
+        "@schematics/angular:pipe": {
+          "flat": true,
+          "skipTests": true
         }
       },
       "root": "projects/lib",

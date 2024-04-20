@@ -11,6 +11,7 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
       #trigger="cdkOverlayOrigin"
       cdkOverlayOrigin
       class="selected-color"
+      [style.background]="color"
       (click)="isOpen = !isOpen"
     ></div>
 
@@ -19,7 +20,7 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
       [cdkConnectedOverlayOrigin]="trigger"
       [cdkConnectedOverlayOpen]="isOpen"
     >
-      <ngx-paint-color-picker-panel></ngx-paint-color-picker-panel>
+      <ngx-paint-color-picker-panel [color]="color" (colorChange)="onColorChange($event)"></ngx-paint-color-picker-panel>
     </ng-template>
   `,
   styles: `
@@ -28,7 +29,6 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
     }
 
     .selected-color {
-      background-color: red;
       height: 40px;
       width: 40px;
       border-radius: 50%;
@@ -43,4 +43,10 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
 })
 export class ColorPickerComponent {
   isOpen = false;
+
+  color: string = '#ffffff';
+
+  onColorChange(color: string) {
+    this.color = color;
+  }
 }
