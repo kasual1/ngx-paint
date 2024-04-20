@@ -185,9 +185,9 @@ export class ColorPickerPanelComponent implements OnInit, AfterViewInit {
     this.saturation = Math.trunc((100 * this.x) / colorPaletteRef.offsetWidth);
     this.value = Math.trunc(100 * (1 - this.y / colorPaletteRef.offsetHeight));
 
-    this.colorChange.emit(this.hexColor);
     this.drag.reset();
     this.drag.setFreeDragPosition({ x: this.x, y: this.y });
+    this.colorChange.emit(this.hexColor);
   }
 
   onDragMoved(event: CdkDragMove) {

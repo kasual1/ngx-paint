@@ -12,6 +12,7 @@ import { CdkDrag, CdkDragMove } from '@angular/cdk/drag-drop';
         class="hue-drag"
         cdkDragLockAxis="x"
         cdkDragBoundary=".hue-drag-boundary"
+        (mousedown)="onDragBoundaryMouseDown($event)"
         (cdkDragMoved)="onDragMoved($event)"
       ></div>
     </div>
@@ -62,7 +63,21 @@ export class HuePickerComponent {
   @ViewChild('hueDragBoundary')
   dragBoundary!: ElementRef<HTMLElement>;
 
+  @ViewChild(CdkDrag)
+  drag!: CdkDrag;
+
   x = 0;
+
+  onDragBoundarClick(event: MouseEvent) {
+    const dragPosition = event.offsetX;
+    this.x = dragPosition - 8;
+
+    this.drag.reset();
+    this.drag.setFreeDragPosition({ x: this.x, y: 0 });
+
+    const hue = this.getHueAt(dragPosition);
+    this.hueChange.emit(hue);
+  }
 
   onDragMoved(event: CdkDragMove) {
     const dragPosition = event.source.getFreeDragPosition();
