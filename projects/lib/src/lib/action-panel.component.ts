@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Output } from '@angular/core';
-import { ColorPickerComponent } from './color-picker.component';
+import { ColorPickerComponent } from './color-picker/color-picker.component';
 
 @Component({
   selector: 'ngx-paint-action-panel',
