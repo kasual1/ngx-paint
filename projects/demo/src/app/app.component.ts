@@ -1,14 +1,26 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { CanvasComponent, ColorPickerComponent, ColorPickerPanelComponent } from 'lib';
+import {
+  BrushPickerPanelComponent,
+  CanvasComponent,
+  ColorPickerComponent,
+  ColorPickerPanelComponent,
+} from 'lib';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CanvasComponent, ColorPickerComponent, ColorPickerPanelComponent, MatButtonModule],
+  imports: [
+    RouterOutlet,
+    CanvasComponent,
+    ColorPickerComponent,
+    ColorPickerPanelComponent,
+    BrushPickerPanelComponent,
+    MatButtonModule,
+  ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
 export class AppComponent {
   title = 'demo';

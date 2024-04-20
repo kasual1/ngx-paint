@@ -26,6 +26,7 @@ import { CommonModule } from '@angular/common';
 
     <ngx-paint-action-panel
       #actionPanel
+      [brush]="selectedBrush"
       (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"

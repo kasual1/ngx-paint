@@ -1,14 +1,19 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { ColorPickerComponent } from './color-picker/color-picker.component';
+import { BrushPickerComponent } from './brush-picker/brush-picker.component';
+import { Brush } from './brushes/brush.model';
 
 @Component({
   selector: 'ngx-paint-action-panel',
   standalone: true,
-  imports: [ColorPickerComponent],
+  imports: [BrushPickerComponent, ColorPickerComponent],
   template: `
-    <button>
-      <span class="material-symbols-outlined">brush</span>
-    </button>
+    <ngx-paint-brush-picker
+      [brush]="brush"
+      (brushChange)="onBrushChange($event)"
+      (close)="onBrushPickerClose()"
+      (brushChange)="onBrushChange($event)"
+    ></ngx-paint-brush-picker>
 
     <ngx-paint-color-picker
       (click)="onColorPickerClick()"
@@ -30,6 +35,7 @@ import { ColorPickerComponent } from './color-picker/color-picker.component';
     :host {
       display: flex;
       flex-direction: column;
+      align-items: center;
       gap: 12px;
       background-color: rgba(240, 240, 240, 0.85);
       backdrop-filter: blur(10px);
@@ -55,11 +61,18 @@ import { ColorPickerComponent } from './color-picker/color-picker.component';
 
     .divider {
       height: 1px;
+      width: 100%;
       background-color: #ccc;
     }
   `,
 })
 export class ActionPanelComponent {
+  @Input()
+  brush!: Brush;
+
+  @Output()
+  brushChange = new EventEmitter<Brush>();
+
   @Output()
   colorChange = new EventEmitter<string>();
 
@@ -70,6 +83,18 @@ export class ActionPanelComponent {
   redo = new EventEmitter<void>();
 
   active = false;
+
+  onBrushPickerClick() {
+    this.active = !this.active;
+  }
+
+  onBrushPickerClose() {
+    this.active = false;
+  }
+
+  onBrushChange(brush: Brush) {
+    this.brushChange.emit(brush);
+  }
 
   onColorPickerClick() {
     this.active = !this.active;

@@ -11,6 +11,7 @@ import {
 import { CdkDrag, CdkDragMove } from '@angular/cdk/drag-drop';
 import { HuePickerComponent } from './hue-picker.component';
 import { ColorService } from './color.service';
+import { Brush } from '../brushes/brush.model';
 
 @Component({
   selector: 'ngx-paint-color-picker-panel',
@@ -84,8 +85,8 @@ import { ColorService } from './color.service';
       width: 100%;
       height: 200px;
       max-width: 100%;
-      border-top-left-radius: 12px;
-      border-top-right-radius: 12px;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
       box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1), 2px 0 4px rgba(0, 0, 0, 0.1), -2px 0 4px rgba(0, 0, 0, 0.1);
     }
 
@@ -94,8 +95,8 @@ import { ColorService } from './color.service';
       margin: -14px 14px;
       background-color: rgba(240, 240, 240, 0.85);
       backdrop-filter: blur(10px);
-      border-bottom-left-radius: 12px;
-      border-bottom-right-radius: 12px;
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 2px 0 4px rgba(0, 0, 0, 0.1), -2px 0 4px rgba(0, 0, 0, 0.1);
     }
   `,

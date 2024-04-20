@@ -12,7 +12,6 @@ import { CdkDrag, CdkDragMove } from '@angular/cdk/drag-drop';
         class="hue-drag"
         cdkDragLockAxis="x"
         cdkDragBoundary=".hue-drag-boundary"
-        (mousedown)="onDragBoundaryMouseDown($event)"
         (cdkDragMoved)="onDragMoved($event)"
       ></div>
     </div>
