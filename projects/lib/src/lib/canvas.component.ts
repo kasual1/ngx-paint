@@ -25,6 +25,7 @@ import { CommonModule } from '@angular/common';
     <canvas #canvas></canvas>
 
     <ngx-paint-action-panel
+      #actionPanel
       (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"
@@ -63,6 +64,9 @@ export class CanvasComponent implements AfterViewInit {
   onWindowResize(event: Event) {
     this.resizeCanvas();
   }
+
+  @ViewChild('actionPanel')
+  actionPanel!: ActionPanelComponent;
 
   @ViewChild('canvas')
   canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -107,7 +111,7 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseDown(event: MouseEvent) {
-    if (this.context) {
+    if (this.context && this.actionPanel.active === false) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
       this.currentPolyline.push({ x, y, color: this.selectedBrush.color });
@@ -116,7 +120,7 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseMove(event: MouseEvent) {
-    if (event.buttons === 1 && this.context) {
+    if (event.buttons === 1 && this.context && this.actionPanel.active === false) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
       this.currentPolyline.push({ x, y, color: this.selectedBrush.color });

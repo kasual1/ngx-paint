@@ -17,6 +17,8 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
 
     <ng-template
       cdkConnectedOverlay
+      cdkConnectedOverlayHasBackdrop="true"
+      cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
       [cdkConnectedOverlayOrigin]="trigger"
       [cdkConnectedOverlayOpen]="isOpen"
       [cdkConnectedOverlayOffsetY]="-12"
@@ -29,7 +31,7 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
           overlayY: 'top'
         }
       ]"
-
+      (backdropClick)="onBackdropClick()"
     >
       <ngx-paint-color-picker-panel
         [color]="color"
@@ -59,6 +61,9 @@ export class ColorPickerComponent {
   @Output()
   colorChange = new EventEmitter<string>();
 
+  @Output()
+  close = new EventEmitter<void>();
+
   isOpen = false;
 
   color: string = '#ffffff';
@@ -66,5 +71,10 @@ export class ColorPickerComponent {
   onColorChange(color: string) {
     this.color = color;
     this.colorChange.emit(this.color);
+  }
+
+  onBackdropClick() {
+    this.isOpen = false;
+    this.close.emit();
   }
 }

@@ -1,4 +1,5 @@
 import {
+  AfterViewInit,
   Component,
   ElementRef,
   EventEmitter,
@@ -21,6 +22,7 @@ import { ColorService } from './color.service';
         #colorPalette
         class="color-palette"
         [style.background]="colorPaletteBackground"
+        (click)="onPaletteClick($event)"
       >
         <div
           #drag
@@ -28,6 +30,7 @@ import { ColorService } from './color.service';
           class="drag"
           cdkDragBoundary=".drag-boundary"
           [style.background]="hexColor"
+          (mousedown)="onMouseDown($event)"
           (cdkDragMoved)="onDragMoved($event)"
         ></div>
       </div>
@@ -97,7 +100,7 @@ import { ColorService } from './color.service';
     }
   `,
 })
-export class ColorPickerPanelComponent implements OnInit {
+export class ColorPickerPanelComponent implements OnInit, AfterViewInit {
   @Input()
   color = '';
 
@@ -107,8 +110,8 @@ export class ColorPickerPanelComponent implements OnInit {
   @ViewChild('dragBoundary')
   dragBoundary!: ElementRef<HTMLElement>;
 
-  @ViewChild('drag')
-  drag!: ElementRef<HTMLElement>;
+  @ViewChild(CdkDrag)
+  drag!: CdkDrag;
 
   @ViewChild('colorPalette')
   colorPalette!: ElementRef<HTMLElement>;
@@ -157,10 +160,34 @@ export class ColorPickerPanelComponent implements OnInit {
     if (this.color) {
       const { h, s, v } = this.colorService.hexToHsv(this.color);
 
-      this.hue = h;
-      this.saturation = s;
-      this.value = v;
+      this.hue = Math.trunc(h);
+      this.saturation = Math.trunc(s);
+      this.value = Math.trunc(v);
     }
+  }
+
+  ngAfterViewInit(): void {
+    const colorPaletteRef = this.colorPalette.nativeElement;
+    this.x = (this.saturation * colorPaletteRef.offsetWidth) / 100;
+    this.y = (1 - this.value / 100) * colorPaletteRef.offsetHeight;
+
+    this.drag.reset();
+    this.drag.setFreeDragPosition({ x: this.x, y: this.y });
+  }
+
+  onPaletteClick(event: MouseEvent) {
+    const colorPaletteRef = this.colorPalette.nativeElement;
+    const rect = colorPaletteRef.getBoundingClientRect();
+
+    this.x = event.clientX - rect.left;
+    this.y = event.clientY - rect.top;
+
+    this.saturation = Math.trunc((100 * this.x) / colorPaletteRef.offsetWidth);
+    this.value = Math.trunc(100 * (1 - this.y / colorPaletteRef.offsetHeight));
+
+    this.colorChange.emit(this.hexColor);
+    this.drag.reset();
+    this.drag.setFreeDragPosition({ x: this.x, y: this.y });
   }
 
   onDragMoved(event: CdkDragMove) {
@@ -175,6 +202,11 @@ export class ColorPickerPanelComponent implements OnInit {
     this.value = Math.trunc(100 * (1 - this.y / colorPaletteRef.offsetHeight));
 
     this.colorChange.emit(this.hexColor);
+  }
+
+  onMouseDown(event: MouseEvent) {
+    event.stopPropagation();
+    event.stopImmediatePropagation();
   }
 
   onHueChange(hue: number) {
