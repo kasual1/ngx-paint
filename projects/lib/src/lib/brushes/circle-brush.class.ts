@@ -23,4 +23,8 @@ export class CircleBrush implements Brush {
   setColor(color: string): void {
     this.color = color;
   }
+
+  setSize(size: number): void {
+    this.size = size;
+  }
 }

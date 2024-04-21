@@ -22,6 +22,12 @@ import { CommonModule } from '@angular/common';
       rel="stylesheet"
     />
 
+    <div
+      class="cursor-circle"
+      [ngStyle]="cursorCircleStyle"
+      [hidden]="!cursorCircleVisible"
+    ></div>
+
     <canvas #canvas></canvas>
 
     <ngx-paint-action-panel
@@ -30,15 +36,32 @@ import { CommonModule } from '@angular/common';
       (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"
+      (mouseenter)="onMouseEnterActionPanel()"
+      (mouseleave)="onMouseLeaveActionPanel()"
     ></ngx-paint-action-panel>
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
       <pre>Undo Stack:{{ undoStack.length | json }}</pre>
       <pre>Redo Stack:{{ redoStack.length | json }}</pre>
+      <pre>Cursor X: {{ cursorX }}</pre>
+      <pre>Cursor Y: {{ cursorY }}</pre>
+      <pre>Window Width: {{ windowWidth }}</pre>
+      <pre>Window Height: {{ windowHeight }}</pre>
+      <pre>Selected Brush Size: {{ selectedBrush.size }}</pre>
     </div>
   `,
   styles: `
+    .cursor-circle {
+      position: absolute;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: width 0.1s ease, height 0.1s ease;
+      background-color: rgba(240, 240, 240, 0.25);
+    }
+
     canvas {
       display: block;
     }
@@ -57,6 +80,8 @@ import { CommonModule } from '@angular/common';
       padding: 12px;
       border-radius: 4px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      background-color: rgba(240, 240, 240, 0.85);
+      backdrop-filter: blur(10px);
     }
   `,
 })
@@ -80,15 +105,56 @@ export class CanvasComponent implements AfterViewInit {
 
   selectedBrush: Brush = this.lineBrush;
 
-  currentPolyline: { x: number; y: number, color: string }[] = [];
+  currentPolyline: { x: number; y: number; color: string; size: number }[] = [];
 
   undoStack: any[] = [];
   redoStack: any[] = [];
+
+  cursorX = 0;
+  cursorY = 0;
+
+  cursorCircleVisible = true;
+
+  mouseDown = false;
+
+  get cursorCircleStyle() {
+    return {
+      'top.px': this.cursorY,
+      'left.px': this.cursorX,
+      'width.px': this.selectedBrush.size,
+      'height.px': this.selectedBrush.size,
+      'border-color': this.mouseDown
+        ? this.selectedBrush.color
+        : 'rgba(240, 240, 240, 0.5)',
+    };
+  }
+
+  get windowWidth() {
+    return window.innerWidth;
+  }
+
+  get windowHeight() {
+    return window.innerHeight;
+  }
 
   ngAfterViewInit() {
     this.setupCanvas();
     this.setupEventListeners();
     this.resizeCanvas();
+  }
+
+  private updateCursorCirclePosition(event: MouseEvent) {
+    const circleRadius = this.selectedBrush.size / 2;
+    const circleBorder = 1;
+
+    this.cursorX = Math.min(
+      Math.max(event.clientX, circleRadius),
+      window.innerWidth - circleRadius - circleBorder
+    );
+    this.cursorY = Math.min(
+      Math.max(event.clientY, circleRadius),
+      window.innerHeight - circleRadius - circleBorder
+    );
   }
 
   private setupCanvas() {
@@ -115,18 +181,36 @@ export class CanvasComponent implements AfterViewInit {
     if (this.context && this.actionPanel.active === false) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({ x, y, color: this.selectedBrush.color });
+      this.currentPolyline.push({
+        x,
+        y,
+        color: this.selectedBrush.color,
+        size: this.selectedBrush.size,
+      });
       this.selectedBrush.draw(this.context, x, y);
     }
+
+    this.mouseDown = true;
   }
 
   onMouseMove(event: MouseEvent) {
-    if (event.buttons === 1 && this.context && this.actionPanel.active === false) {
+    if (
+      event.buttons === 1 &&
+      this.context &&
+      this.actionPanel.active === false
+    ) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({ x, y, color: this.selectedBrush.color });
+      this.currentPolyline.push({
+        x,
+        y,
+        color: this.selectedBrush.color,
+        size: this.selectedBrush.size,
+      });
       this.selectedBrush.draw(this.context, x, y);
     }
+
+    this.updateCursorCirclePosition(event);
   }
 
   onMouseUp(event: MouseEvent) {
@@ -135,6 +219,8 @@ export class CanvasComponent implements AfterViewInit {
       this.undoStack.push(this.currentPolyline);
       this.currentPolyline = [];
     }
+
+    this.mouseDown = false;
   }
 
   setSelectedBrush(brush: Brush) {
@@ -168,10 +254,19 @@ export class CanvasComponent implements AfterViewInit {
 
     for (const polyline of this.undoStack) {
       for (let i = 0; i < polyline.length; i++) {
+        this.selectedBrush.setSize(polyline[i].size);
         this.selectedBrush.setColor(polyline[i].color);
         this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
       }
       this.selectedBrush.reset();
     }
+  }
+
+  onMouseEnterActionPanel() {
+    this.cursorCircleVisible = false;
+  }
+
+  onMouseLeaveActionPanel() {
+    this.cursorCircleVisible = true;
   }
 }
