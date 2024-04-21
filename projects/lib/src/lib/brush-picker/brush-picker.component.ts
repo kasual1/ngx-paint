@@ -8,11 +8,13 @@ import { Brush } from '../brushes/brush.model';
   standalone: true,
   imports: [OverlayModule, BrushPickerPanelComponent],
   template: `
-
-    <button cdkOverlayOrigin
+    <button
+      cdkOverlayOrigin
       #trigger="cdkOverlayOrigin"
-      class="selected-color" (click)="isOpen = !isOpen">
-      <span class="material-symbols-outlined">brush</span>
+      class="selected-color"
+      (click)="isOpen = !isOpen"
+    >
+      <span class="material-symbols-outlined">{{ brush.icon }}</span>
     </button>
 
     <ng-template
@@ -33,7 +35,10 @@ import { Brush } from '../brushes/brush.model';
       ]"
       (backdropClick)="onBackdropClick()"
     >
-      <ngx-paint-brush-picker-panel [(brush)]="brush"></ngx-paint-brush-picker-panel>
+      <ngx-paint-brush-picker-panel
+        [brush]="brush"
+        (brushChange)="onBrushChange($event)"
+      ></ngx-paint-brush-picker-panel>
     </ng-template>
   `,
   styles: `
@@ -49,16 +54,23 @@ import { Brush } from '../brushes/brush.model';
         cursor: pointer;
       }
     }
-  `
+  `,
 })
 export class BrushPickerComponent {
   @Input()
   brush!: Brush;
 
   @Output()
+  brushChange = new EventEmitter<Brush>();
+
+  @Output()
   close = new EventEmitter<void>();
 
   isOpen = false;
+
+  onBrushChange(brush: Brush) {
+    this.brushChange.emit(brush);
+  }
 
   onBackdropClick() {
     this.isOpen = false;

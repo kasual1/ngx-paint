@@ -32,7 +32,7 @@ import { CommonModule } from '@angular/common';
 
     <ngx-paint-action-panel
       #actionPanel
-      [brush]="selectedBrush"
+      [(brush)]="selectedBrush"
       (redo)="onRedo()"
       (undo)="onUndo()"
       (mouseenter)="onMouseEnterActionPanel()"
@@ -47,6 +47,7 @@ import { CommonModule } from '@angular/common';
       <pre>Cursor Y: {{ cursorY }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
       <pre>Window Height: {{ windowHeight }}</pre>
+      <pre>Selected Brush: {{ selectedBrush.name }}</pre>
       <pre>Selected Brush Size: {{ selectedBrush.size }}</pre>
     </div>
   `,
@@ -100,9 +101,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  lineBrush: Brush = new LineBrush('#eb4034', 10);
-
-  selectedBrush: Brush = this.lineBrush;
+  selectedBrush: Brush = new LineBrush('Line','#eb4034', 10);
 
   currentPolyline: { x: number; y: number; color: string; size: number }[] = [];
 

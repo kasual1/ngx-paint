@@ -1,13 +1,24 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
-import { LineBrush } from '../brushes/line-brush.class';
-import { FormsModule } from '@angular/forms';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  Output,
+  ViewChild,
+} from '@angular/core';
 import { Brush } from '../brushes/brush.model';
-
+import { BrushPickerSelectComponent } from './brush-picker-select.component';
 @Component({
   selector: 'ngx-paint-brush-picker-panel',
   standalone: true,
-  imports: [FormsModule],
+  imports: [BrushPickerSelectComponent],
   template: `
+    <ngx-paint-brush-picker-select
+      [brush]="brush"
+      (brushChange)="onBrushChange($event)"
+    ></ngx-paint-brush-picker-select>
+
     <canvas #previewCanvas></canvas>
 
     <div class="action-panel">
@@ -31,7 +42,6 @@ import { Brush } from '../brushes/brush.model';
     }
 
     canvas {
-      border-radius: 4px 4px 0 0;
       background-color: white;
     }
 
@@ -45,7 +55,7 @@ import { Brush } from '../brushes/brush.model';
   `,
 })
 export class BrushPickerPanelComponent implements AfterViewInit {
-  @Input({required: true})
+  @Input({ required: true })
   brush!: Brush;
 
   @Output()
@@ -62,7 +72,7 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.canvas = this.canvasRef.nativeElement;
     this.context = this.canvas.getContext('2d')!;
     this.canvas.width = 300;
-    this.canvas.height = 100
+    this.canvas.height = 100;
 
     this.drawPreviewStrokeOnCanvas();
   }
@@ -75,6 +85,12 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.context.lineWidth = this.brush.size;
     this.context.strokeStyle = this.brush.color;
     this.context.stroke();
+  }
+
+  onBrushChange(brush: Brush) {
+    this.brush = brush;
+    this.drawPreviewStrokeOnCanvas();
+    this.brushChange.emit(brush);
   }
 
   onBrushSizeChange(event: Event) {

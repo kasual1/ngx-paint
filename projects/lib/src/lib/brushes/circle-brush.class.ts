@@ -1,10 +1,13 @@
 import { Brush } from "./brush.model";
 
 export class CircleBrush implements Brush {
+  name: string;
+  icon: string = 'stylus';
   color: string;
   size: number;
 
-  constructor(color: string, size: number) {
+  constructor(name: string, color: string, size: number) {
+    this.name = name;
     this.color = color;
     this.size = size;
   }

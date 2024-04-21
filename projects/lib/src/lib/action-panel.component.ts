@@ -10,6 +10,7 @@ import { Brush } from './brushes/brush.model';
   template: `
     <ngx-paint-brush-picker
       [brush]="brush"
+      (brushChange)="onBrushChange($event)"
       (click)="onBrushPickerClick()"
       (close)="onBrushPickerClose()"
     ></ngx-paint-brush-picker>
@@ -82,6 +83,12 @@ export class ActionPanelComponent {
   redo = new EventEmitter<void>();
 
   active = false;
+
+  onBrushChange(brush: Brush) {
+    debugger;
+    this.brush = brush;
+    this.brushChange.emit(brush);
+  }
 
   onBrushPickerClick() {
     this.active = !this.active;

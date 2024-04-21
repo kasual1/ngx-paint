@@ -1,4 +1,6 @@
 export interface Brush {
+  name: string;
+  icon: string;
   color: string;
   size: number;
   reset(): void;

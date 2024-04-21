@@ -5,6 +5,7 @@ import {
   CanvasComponent,
   ColorPickerComponent,
   ColorPickerPanelComponent,
+  LineBrush,
 } from 'lib';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -23,5 +24,5 @@ import { MatButtonModule } from '@angular/material/button';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
-  title = 'demo';
+  brush = new LineBrush('Line', '#000000', 5);
 }

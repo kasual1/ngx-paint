@@ -1,12 +1,15 @@
 import { Brush } from "./brush.model";
 
 export class LineBrush implements Brush {
+  name: string;
+  icon: string = 'brush';
   color: string;
   size: number;
   prevX: number | null = null;
   prevY: number | null = null;
 
-  constructor(color: string, lineWidth: number = 2) {
+  constructor(name: string, color: string, lineWidth: number = 2) {
+    this.name = name;
     this.color = color;
     this.size = lineWidth;
   }
