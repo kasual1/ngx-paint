@@ -11,7 +11,6 @@ import {
 import { CdkDrag, CdkDragMove } from '@angular/cdk/drag-drop';
 import { HuePickerComponent } from './hue-picker.component';
 import { ColorService } from './color.service';
-import { Brush } from '../brushes/brush.model';
 
 @Component({
   selector: 'ngx-paint-color-picker-panel',
@@ -50,6 +49,8 @@ import { Brush } from '../brushes/brush.model';
 
       <pre>Hex: {{ hexColor }}</pre>
     </div>
+
+
   `,
   styles: `
     :host{

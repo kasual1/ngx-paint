@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { LineBrush } from '../brushes/line-brush.class';
 import { FormsModule } from '@angular/forms';
 import { Brush } from '../brushes/brush.model';
@@ -10,18 +10,15 @@ import { Brush } from '../brushes/brush.model';
   template: `
     <canvas #previewCanvas></canvas>
 
-    <form #ngForm>
     <div class="action-panel">
       <input
         type="range"
         min="1"
         max="50"
-        name="size"
-        [(ngModel)]="brush.size"
-        (ngModelChange)="onFormChange()"
+        [value]="brush.size"
+        (input)="onBrushSizeChange($event)"
       />
     </div>
-  </form>
   `,
   styles: `
     :host{
@@ -48,8 +45,11 @@ import { Brush } from '../brushes/brush.model';
   `,
 })
 export class BrushPickerPanelComponent implements AfterViewInit {
-  @Input()
-  brush: Brush = new LineBrush('#000000', 10);
+  @Input({required: true})
+  brush!: Brush;
+
+  @Output()
+  brushChange = new EventEmitter<Brush>();
 
   @ViewChild('previewCanvas')
   canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -57,10 +57,6 @@ export class BrushPickerPanelComponent implements AfterViewInit {
   canvas!: HTMLCanvasElement;
 
   context!: CanvasRenderingContext2D;
-
-  color: string = '#000000';
-
-  lineWidth: number = 10;
 
   ngAfterViewInit(): void {
     this.canvas = this.canvasRef.nativeElement;
@@ -70,7 +66,6 @@ export class BrushPickerPanelComponent implements AfterViewInit {
 
     this.drawPreviewStrokeOnCanvas();
   }
-
 
   private drawPreviewStrokeOnCanvas() {
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -82,7 +77,10 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.context.stroke();
   }
 
-  onFormChange() {
+  onBrushSizeChange(event: Event) {
+    const size = (event.target as HTMLInputElement).value;
+    this.brush.size = parseInt(size);
     this.drawPreviewStrokeOnCanvas();
+    this.brushChange.emit(this.brush);
   }
 }

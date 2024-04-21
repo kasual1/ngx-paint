@@ -25,7 +25,7 @@ import { CommonModule } from '@angular/common';
     <div
       class="cursor-circle"
       [ngStyle]="cursorCircleStyle"
-      [hidden]="!cursorCircleVisible"
+      [hidden]="!cursorCircleVisible || actionPanel.active"
     ></div>
 
     <canvas #canvas></canvas>
@@ -33,7 +33,6 @@ import { CommonModule } from '@angular/common';
     <ngx-paint-action-panel
       #actionPanel
       [brush]="selectedBrush"
-      (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"
       (mouseenter)="onMouseEnterActionPanel()"
@@ -101,7 +100,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  lineBrush: Brush = new LineBrush('black', 10);
+  lineBrush: Brush = new LineBrush('#eb4034', 10);
 
   selectedBrush: Brush = this.lineBrush;
 
@@ -221,14 +220,6 @@ export class CanvasComponent implements AfterViewInit {
     }
 
     this.mouseDown = false;
-  }
-
-  setSelectedBrush(brush: Brush) {
-    this.selectedBrush = brush;
-  }
-
-  onColorChange(color: string) {
-    this.selectedBrush.setColor(color);
   }
 
   onUndo() {

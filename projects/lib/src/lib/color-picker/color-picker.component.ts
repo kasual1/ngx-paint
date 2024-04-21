@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { ColorPickerPanelComponent } from './color-picker-panel.component';
+import { Brush } from '../brushes/brush.model';
 
 @Component({
   selector: 'ngx-paint-color-picker',
@@ -11,7 +12,7 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
       cdkOverlayOrigin
       #trigger="cdkOverlayOrigin"
       class="selected-color"
-      [style.background]="color"
+      [style.background]="brush.color"
       (click)="isOpen = !isOpen"
     ></div>
 
@@ -34,8 +35,7 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
       (backdropClick)="onBackdropClick()"
     >
       <ngx-paint-color-picker-panel
-        [color]="color"
-        (colorChange)="onColorChange($event)"
+        [(color)]="brush.color"
       ></ngx-paint-color-picker-panel>
     </ng-template>
   `,
@@ -58,8 +58,8 @@ import { ColorPickerPanelComponent } from './color-picker-panel.component';
   `,
 })
 export class ColorPickerComponent {
-  @Output()
-  colorChange = new EventEmitter<string>();
+  @Input()
+  brush!: Brush;
 
   @Output()
   close = new EventEmitter<void>();
@@ -67,11 +67,6 @@ export class ColorPickerComponent {
   isOpen = false;
 
   color: string = '#ffffff';
-
-  onColorChange(color: string) {
-    this.color = color;
-    this.colorChange.emit(this.color);
-  }
 
   onBackdropClick() {
     this.isOpen = false;

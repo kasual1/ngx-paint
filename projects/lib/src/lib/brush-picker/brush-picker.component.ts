@@ -33,7 +33,7 @@ import { Brush } from '../brushes/brush.model';
       ]"
       (backdropClick)="onBackdropClick()"
     >
-      <ngx-paint-brush-picker-panel [brush]="brush"></ngx-paint-brush-picker-panel>
+      <ngx-paint-brush-picker-panel [(brush)]="brush"></ngx-paint-brush-picker-panel>
     </ng-template>
   `,
   styles: `
@@ -56,17 +56,9 @@ export class BrushPickerComponent {
   brush!: Brush;
 
   @Output()
-  brushChange = new EventEmitter<Brush>();
-
-  @Output()
   close = new EventEmitter<void>();
 
-
   isOpen = false;
-
-  onColorChange(brush: Brush) {
-    this.brushChange.emit(brush);
-  }
 
   onBackdropClick() {
     this.isOpen = false;

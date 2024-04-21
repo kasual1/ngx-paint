@@ -10,15 +10,14 @@ import { Brush } from './brushes/brush.model';
   template: `
     <ngx-paint-brush-picker
       [brush]="brush"
-      (brushChange)="onBrushChange($event)"
+      (click)="onBrushPickerClick()"
       (close)="onBrushPickerClose()"
-      (brushChange)="onBrushChange($event)"
     ></ngx-paint-brush-picker>
 
     <ngx-paint-color-picker
+      [brush]="brush"
       (click)="onColorPickerClick()"
       (close)="onColorPickerClose()"
-      (colorChange)="onColorChange($event)"
     ></ngx-paint-color-picker>
 
     <div class="divider"></div>
@@ -92,20 +91,12 @@ export class ActionPanelComponent {
     this.active = false;
   }
 
-  onBrushChange(brush: Brush) {
-    this.brushChange.emit(brush);
-  }
-
   onColorPickerClick() {
     this.active = !this.active;
   }
 
   onColorPickerClose() {
     this.active = false;
-  }
-
-  onColorChange(color: string) {
-    this.colorChange.emit(color);
   }
 
   onUndo() {
