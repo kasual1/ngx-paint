@@ -6,10 +6,11 @@ import {
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { Brush } from './brushes/brush.model';
+import { Brush, BrushType } from './brushes/brush.model';
 import { LineBrush } from './brushes/line-brush.class';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
+import { BasicBrush, CircleBrush } from '../public-api';
 
 @Component({
   selector: 'ngx-paint',
@@ -32,7 +33,9 @@ import { CommonModule } from '@angular/common';
 
     <ngx-paint-action-panel
       #actionPanel
-      [(brush)]="selectedBrush"
+      [brush]="selectedBrush"
+      (brushChange)="onBrushChange($event)"
+      (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
       (undo)="onUndo()"
       (mouseenter)="onMouseEnterActionPanel()"
@@ -101,9 +104,17 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new LineBrush('Line','#eb4034', 10);
+  selectedBrush: Brush = new LineBrush('Line', '#eb4034', 10);
 
-  currentPolyline: { x: number; y: number; color: string; size: number }[] = [];
+  currentPolyline: {
+    x: number;
+    y: number;
+    prevX?: number;
+    prevY?: number;
+    type: BrushType;
+    color: string;
+    size: number;
+  }[] = [];
 
   undoStack: any[] = [];
   redoStack: any[] = [];
@@ -182,6 +193,9 @@ export class CanvasComponent implements AfterViewInit {
       this.currentPolyline.push({
         x,
         y,
+        prevX: (this.selectedBrush as LineBrush).prevX!,
+        prevY: (this.selectedBrush as LineBrush).prevY!,
+        type: this.selectedBrush.type,
         color: this.selectedBrush.color,
         size: this.selectedBrush.size,
       });
@@ -193,7 +207,7 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseMove(event: MouseEvent) {
     if (
-      event.buttons === 1 &&
+      this.mouseDown &&
       this.context &&
       this.actionPanel.active === false
     ) {
@@ -202,6 +216,9 @@ export class CanvasComponent implements AfterViewInit {
       this.currentPolyline.push({
         x,
         y,
+        prevX: (this.selectedBrush as LineBrush).prevX!,
+        prevY: (this.selectedBrush as LineBrush).prevY!,
+        type: this.selectedBrush.type,
         color: this.selectedBrush.color,
         size: this.selectedBrush.size,
       });
@@ -212,13 +229,23 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseUp(event: MouseEvent) {
-    if (this.currentPolyline) {
+    if (this.currentPolyline.length > 0) {
       this.selectedBrush.reset();
       this.undoStack.push(this.currentPolyline);
       this.currentPolyline = [];
     }
 
     this.mouseDown = false;
+  }
+
+  onBrushChange(brush: Brush) {
+    brush.setSize(this.selectedBrush.size);
+    brush.setColor(this.selectedBrush.color);
+    this.selectedBrush = brush;
+  }
+
+  onColorChange(color: string) {
+    this.selectedBrush.setColor(color);
   }
 
   onUndo() {
@@ -244,8 +271,11 @@ export class CanvasComponent implements AfterViewInit {
 
     for (const polyline of this.undoStack) {
       for (let i = 0; i < polyline.length; i++) {
-        this.selectedBrush.setSize(polyline[i].size);
-        this.selectedBrush.setColor(polyline[i].color);
+        this.selectedBrush = this.createBrush(polyline[i].type, polyline[i].color, polyline[i].size);
+        if(this.selectedBrush.type === BrushType.Line){
+          (this.selectedBrush as LineBrush).prevX = polyline[i].prevX;
+          (this.selectedBrush as LineBrush).prevY = polyline[i].prevY;
+        }
         this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
       }
       this.selectedBrush.reset();
@@ -258,5 +288,18 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseLeaveActionPanel() {
     this.cursorCircleVisible = true;
+  }
+
+  private createBrush(type: BrushType, color: string, size: number) {
+    switch (type) {
+      case BrushType.Circle:
+        return new CircleBrush('Circle', color, size);
+      case BrushType.Basic:
+        return new BasicBrush('Basic', color, size);
+      case BrushType.Line:
+        return new LineBrush('Line', color, size);
+      default:
+        throw new Error('Brush type not supported');
+    }
   }
 }

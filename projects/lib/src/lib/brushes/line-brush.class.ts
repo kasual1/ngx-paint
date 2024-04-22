@@ -1,7 +1,8 @@
-import { Brush } from "./brush.model";
+import { Brush, BrushType } from "./brush.model";
 
 export class LineBrush implements Brush {
   name: string;
+  type: BrushType = BrushType.Line;
   icon: string = 'brush';
   color: string;
   size: number;

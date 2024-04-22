@@ -16,7 +16,8 @@ import { Brush } from './brushes/brush.model';
     ></ngx-paint-brush-picker>
 
     <ngx-paint-color-picker
-      [brush]="brush"
+      [color]="brush.color"
+      (colorChange)="onColorChange($event)"
       (click)="onColorPickerClick()"
       (close)="onColorPickerClose()"
     ></ngx-paint-color-picker>
@@ -85,8 +86,6 @@ export class ActionPanelComponent {
   active = false;
 
   onBrushChange(brush: Brush) {
-    debugger;
-    this.brush = brush;
     this.brushChange.emit(brush);
   }
 
@@ -96,6 +95,10 @@ export class ActionPanelComponent {
 
   onBrushPickerClose() {
     this.active = false;
+  }
+
+  onColorChange(color: string) {
+    this.colorChange.emit(color);
   }
 
   onColorPickerClick() {

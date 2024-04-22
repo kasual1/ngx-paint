@@ -1,5 +1,12 @@
+export enum BrushType {
+  Circle = 'Circle',
+  Line = 'Line',
+  Basic = 'Basic',
+}
+
 export interface Brush {
   name: string;
+  type: BrushType;
   icon: string;
   color: string;
   size: number;
@@ -8,3 +15,4 @@ export interface Brush {
   setColor(color: string): void;
   setSize(size: number): void;
 }
+

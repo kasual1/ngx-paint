@@ -1,7 +1,8 @@
-import { Brush } from "./brush.model";
+import { Brush, BrushType } from "./brush.model";
 
 export class BasicBrush implements Brush {
   name: string;
+  type: BrushType = BrushType.Basic;
   icon: string = 'ink_pen';
   color: string;
   size: number;

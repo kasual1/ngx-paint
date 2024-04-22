@@ -1,7 +1,8 @@
-import { Brush } from "./brush.model";
+import { Brush, BrushType } from "./brush.model";
 
 export class CircleBrush implements Brush {
   name: string;
+  type: BrushType = BrushType.Circle;
   icon: string = 'stylus';
   color: string;
   size: number;
