@@ -59,7 +59,7 @@ export class CircleBrush implements Brush {
 
     this.r = this.size - this.v;
 
-    if(this.r < 1) { this.r = 1; }
+    if(this.r < 10) { this.r = 10; }
 
     x += this.velocityX;
     y += this.velocityY;
@@ -77,6 +77,7 @@ export class CircleBrush implements Brush {
     ctx.beginPath();  // Start a new path
     ctx.lineJoin = 'round';  // Make the join between line segments round
     ctx.lineCap = 'round';
+    ctx.strokeStyle = this.color;  // Set the color
     ctx.moveTo(x1, y1);  // Move the pen to the starting point
     ctx.lineTo(x2, y2);  // Draw a line to the ending point
     ctx.stroke();  // Render the line
