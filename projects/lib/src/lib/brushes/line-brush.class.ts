@@ -15,6 +15,14 @@ export class LineBrush implements Brush {
     this.size = lineWidth;
   }
 
+  down(x: number, y: number): void {
+    // Nothing to do on mouse down for a line brush
+  }
+
+  up(): void {
+    // Nothing to do on mouse up for a basic brush
+  }
+
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     ctx.strokeStyle = this.color;
     ctx.lineWidth = this.size;

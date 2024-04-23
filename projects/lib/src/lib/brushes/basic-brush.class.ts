@@ -13,6 +13,14 @@ export class BasicBrush implements Brush {
     this.size = size;
   }
 
+  down(x: number, y: number): void {
+    // Nothing to do on mouse down for a basic brush
+  }
+
+  up(): void {
+    // Nothing to do on mouse up for a basic brush
+  }
+
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     ctx.fillStyle = this.color;
     ctx.fillRect(x - this.size / 2, y - this.size / 2, this.size, this.size);

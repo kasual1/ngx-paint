@@ -11,6 +11,8 @@ export interface Brush {
   color: string;
   size: number;
   reset(): void;
+  down(x: number, y: number): void;
+  up(): void;
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void;
   setColor(color: string): void;
   setSize(size: number): void;

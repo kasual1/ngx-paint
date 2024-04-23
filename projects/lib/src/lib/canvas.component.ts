@@ -104,7 +104,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new LineBrush('Line', '#eb4034', 10);
+  selectedBrush: Brush = new CircleBrush('Circle', '#eb4034', 20);
 
   currentPolyline: {
     x: number;
@@ -199,7 +199,7 @@ export class CanvasComponent implements AfterViewInit {
         color: this.selectedBrush.color,
         size: this.selectedBrush.size,
       });
-      this.selectedBrush.draw(this.context, x, y);
+      this.selectedBrush.down(x, y);
     }
 
     this.mouseDown = true;
@@ -235,6 +235,7 @@ export class CanvasComponent implements AfterViewInit {
       this.currentPolyline = [];
     }
 
+    this.selectedBrush.up();
     this.mouseDown = false;
   }
 
