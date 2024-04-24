@@ -1,10 +1,8 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CdkMenuModule } from '@angular/cdk/menu';
-import { Brush } from '../brushes/brush.model';
-import { LineBrush } from '../brushes/line-brush.class';
-import { CircleBrush } from '../brushes/circle-brush.class';
-import { BasicBrush } from '../brushes/basic-brush.class';
+import { BaseStylus } from '../brushes/base-stylus.class';
 import { CommonModule } from '@angular/common';
+import { BaseBrush, Brush } from '../brushes/base-brush.class';
 
 @Component({
   selector: 'ngx-paint-brush-picker-select',
@@ -125,9 +123,8 @@ export class BrushPickerSelectComponent {
 
   @Input()
   options: Brush[] = [
-    new LineBrush('Line', '#00000', 10),
-    new CircleBrush('Circle', '#00000', 10),
-    new BasicBrush('Basic', '#00000', 10),
+    new BaseBrush('Brush', '#00000', 10),
+    new BaseStylus('Stylus', '#00000', 10)
   ];
 
   onMenuItemClick(brush: Brush) {

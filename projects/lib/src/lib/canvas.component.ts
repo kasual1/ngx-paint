@@ -6,11 +6,10 @@ import {
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
-import { Brush, BrushType } from './brushes/brush.model';
-import { LineBrush } from './brushes/line-brush.class';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
-import { BasicBrush, CircleBrush } from '../public-api';
+import { BaseBrush, Brush, BrushType } from './brushes/base-brush.class';
+import { BaseStylus } from '../public-api';
 
 @Component({
   selector: 'ngx-paint',
@@ -104,7 +103,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new CircleBrush('Circle', '#eb4034', 20);
+  selectedBrush: Brush = new BaseBrush('Brush', '#eb4034', 20);
 
   currentPolyline: {
     x: number;
@@ -193,8 +192,8 @@ export class CanvasComponent implements AfterViewInit {
       this.currentPolyline.push({
         x,
         y,
-        prevX: (this.selectedBrush as LineBrush).prevX!,
-        prevY: (this.selectedBrush as LineBrush).prevY!,
+        prevX: (this.selectedBrush as BaseBrush).prevX!,
+        prevY: (this.selectedBrush as BaseBrush).prevY!,
         type: this.selectedBrush.type,
         color: this.selectedBrush.color,
         size: this.selectedBrush.size,
@@ -216,8 +215,8 @@ export class CanvasComponent implements AfterViewInit {
       this.currentPolyline.push({
         x,
         y,
-        prevX: (this.selectedBrush as LineBrush).prevX!,
-        prevY: (this.selectedBrush as LineBrush).prevY!,
+        prevX: (this.selectedBrush as BaseBrush).prevX!,
+        prevY: (this.selectedBrush as BaseBrush).prevY!,
         type: this.selectedBrush.type,
         color: this.selectedBrush.color,
         size: this.selectedBrush.size,
@@ -240,13 +239,13 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onBrushChange(brush: Brush) {
-    brush.setSize(this.selectedBrush.size);
-    brush.setColor(this.selectedBrush.color);
+    brush.size = this.selectedBrush.size;
+    brush.color = this.selectedBrush.color;
     this.selectedBrush = brush;
   }
 
   onColorChange(color: string) {
-    this.selectedBrush.setColor(color);
+    this.selectedBrush.color = color;
   }
 
   onUndo() {
@@ -273,9 +272,9 @@ export class CanvasComponent implements AfterViewInit {
     for (const polyline of this.undoStack) {
       for (let i = 0; i < polyline.length; i++) {
         this.selectedBrush = this.createBrush(polyline[i].type, polyline[i].color, polyline[i].size);
-        if(this.selectedBrush.type === BrushType.Line){
-          (this.selectedBrush as LineBrush).prevX = polyline[i].prevX;
-          (this.selectedBrush as LineBrush).prevY = polyline[i].prevY;
+        if(this.selectedBrush.type === BrushType.Brush){
+          (this.selectedBrush as BaseBrush).prevX = polyline[i].prevX;
+          (this.selectedBrush as BaseBrush).prevY = polyline[i].prevY;
         }
         this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
       }
@@ -291,14 +290,12 @@ export class CanvasComponent implements AfterViewInit {
     this.cursorCircleVisible = true;
   }
 
-  private createBrush(type: BrushType, color: string, size: number) {
+  createBrush(type: BrushType, color: string, size: number): Brush {
     switch (type) {
-      case BrushType.Circle:
-        return new CircleBrush('Circle', color, size);
-      case BrushType.Basic:
-        return new BasicBrush('Basic', color, size);
-      case BrushType.Line:
-        return new LineBrush('Line', color, size);
+      case BrushType.Brush:
+        return new BaseBrush('Brush', color, size);
+      case BrushType.Stylus:
+        return new BaseStylus('Stylus', color, size);
       default:
         throw new Error('Brush type not supported');
     }
