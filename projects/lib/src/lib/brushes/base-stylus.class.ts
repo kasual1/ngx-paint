@@ -40,6 +40,8 @@ export class BaseStylus implements Brush {
   }
 
   up(): void {
+    this.prevX = null;
+    this.prevY = null;
     this.velocityX = 0;
     this.velocityY = 0;
   }
@@ -74,9 +76,5 @@ export class BaseStylus implements Brush {
 
     this.prevX = x;
     this.prevY = y;
-  }
-
-  reset(): void {
-    // Nothing to reset for a circle brush
   }
 }

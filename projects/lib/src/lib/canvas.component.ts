@@ -229,7 +229,6 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseUp(event: MouseEvent) {
     if (this.currentPolyline.length > 0) {
-      this.selectedBrush.reset();
       this.undoStack.push(this.currentPolyline);
       this.currentPolyline = [];
     }
@@ -253,7 +252,6 @@ export class CanvasComponent implements AfterViewInit {
       const lastPolyline = this.undoStack.pop();
       this.redoStack.push(lastPolyline);
       this.redrawCanvas();
-      this.selectedBrush.reset();
     }
   }
 
@@ -278,7 +276,8 @@ export class CanvasComponent implements AfterViewInit {
         }
         this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
       }
-      this.selectedBrush.reset();
+      this.selectedBrush.prevX = null;
+      this.selectedBrush.prevY = null;
     }
   }
 

@@ -13,7 +13,10 @@ export interface Brush {
   size: number;
   lineCap: CanvasLineCap;
   lineJoin: CanvasLineJoin;
-  reset(): void;
+
+  prevX: number | null;
+  prevY: number | null;
+
   down(x: number, y: number): void;
   up(): void;
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void;
@@ -42,7 +45,8 @@ export class BaseBrush implements Brush {
   }
 
   up(): void {
-    throw new Error("Method not implemented.");
+    this.prevX = null;
+    this.prevY = null;
   }
 
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
@@ -59,10 +63,5 @@ export class BaseBrush implements Brush {
 
     this.prevX = x;
     this.prevY = y;
-  }
-
-  reset(): void {
-    this.prevX = null;
-    this.prevY = null;
   }
 }
