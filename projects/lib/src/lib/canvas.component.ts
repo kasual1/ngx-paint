@@ -8,8 +8,14 @@ import {
 } from '@angular/core';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
-import { BaseBrush, Brush, BrushType } from './brushes/base-brush.class';
+import {
+  BaseBrush,
+  Brush,
+  BrushType,
+  LineSegment,
+} from './brushes/base-brush.class';
 import { BaseStylus } from '../public-api';
+import { HistoryService } from './history.service';
 
 @Component({
   selector: 'ngx-paint',
@@ -43,8 +49,6 @@ import { BaseStylus } from '../public-api';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
-      <pre>Undo Stack:{{ undoStack.length | json }}</pre>
-      <pre>Redo Stack:{{ redoStack.length | json }}</pre>
       <pre>Cursor X: {{ cursorX }}</pre>
       <pre>Cursor Y: {{ cursorY }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
@@ -105,18 +109,7 @@ export class CanvasComponent implements AfterViewInit {
 
   selectedBrush: Brush = new BaseBrush('Brush', '#eb4034', 20);
 
-  currentPolyline: {
-    x: number;
-    y: number;
-    prevX?: number;
-    prevY?: number;
-    type: BrushType;
-    color: string;
-    size: number;
-  }[] = [];
-
-  undoStack: any[] = [];
-  redoStack: any[] = [];
+  currentLine: LineSegment[] = [];
 
   cursorX = 0;
   cursorY = 0;
@@ -144,6 +137,12 @@ export class CanvasComponent implements AfterViewInit {
   get windowHeight() {
     return window.innerHeight;
   }
+
+  get canDraw() {
+    return this.context && this.actionPanel.active === false;
+  }
+
+  constructor(private historyService: HistoryService) {}
 
   ngAfterViewInit() {
     this.setupCanvas();
@@ -186,18 +185,10 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseDown(event: MouseEvent) {
-    if (this.context && this.actionPanel.active === false) {
+    if (this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({
-        x,
-        y,
-        prevX: (this.selectedBrush as BaseBrush).prevX!,
-        prevY: (this.selectedBrush as BaseBrush).prevY!,
-        type: this.selectedBrush.type,
-        color: this.selectedBrush.color,
-        size: this.selectedBrush.size,
-      });
+      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
       this.selectedBrush.down(x, y);
     }
 
@@ -205,22 +196,10 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseMove(event: MouseEvent) {
-    if (
-      this.mouseDown &&
-      this.context &&
-      this.actionPanel.active === false
-    ) {
+    if (this.mouseDown && this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentPolyline.push({
-        x,
-        y,
-        prevX: (this.selectedBrush as BaseBrush).prevX!,
-        prevY: (this.selectedBrush as BaseBrush).prevY!,
-        type: this.selectedBrush.type,
-        color: this.selectedBrush.color,
-        size: this.selectedBrush.size,
-      });
+      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
       this.selectedBrush.draw(this.context, x, y);
     }
 
@@ -228,10 +207,8 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseUp(event: MouseEvent) {
-    if (this.currentPolyline.length > 0) {
-      this.undoStack.push(this.currentPolyline);
-      this.currentPolyline = [];
-    }
+    this.historyService.add(this.currentLine);
+    this.currentLine = [];
 
     this.selectedBrush.up();
     this.mouseDown = false;
@@ -248,34 +225,36 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onUndo() {
-    if (this.undoStack.length > 0) {
-      const lastPolyline = this.undoStack.pop();
-      this.redoStack.push(lastPolyline);
-      this.redrawCanvas();
-    }
+    this.historyService.undo();
+    this.redrawCanvas();
   }
 
   onRedo() {
-    if (this.redoStack.length > 0) {
-      const lastPolyline = this.redoStack.pop();
-      this.undoStack.push(lastPolyline);
-      this.redrawCanvas();
-    }
+    this.historyService.redo();
+    this.redrawCanvas();
   }
 
   private redrawCanvas() {
+    const drawnLines = this.historyService.undoStack;
+
     this.canvas = this.canvasRef.nativeElement;
     this.context!.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    for (const polyline of this.undoStack) {
-      for (let i = 0; i < polyline.length; i++) {
-        this.selectedBrush = this.createBrush(polyline[i].type, polyline[i].color, polyline[i].size);
-        if(this.selectedBrush.type === BrushType.Brush){
-          (this.selectedBrush as BaseBrush).prevX = polyline[i].prevX;
-          (this.selectedBrush as BaseBrush).prevY = polyline[i].prevY;
-        }
-        this.selectedBrush.draw(this.context!, polyline[i].x, polyline[i].y);
+    for (const line of drawnLines) {
+      for (let i = 0; i < line.length; i++) {
+        const lineSegment = line[i];
+
+        this.selectedBrush = this.createBrush(
+          lineSegment.type,
+          lineSegment.color,
+          lineSegment.size
+        );
+
+        this.selectedBrush.prevX = lineSegment.prevX!;
+        this.selectedBrush.prevY = lineSegment.prevY!;
+        this.selectedBrush.draw(this.context!, lineSegment.x, lineSegment.y);
       }
+
       this.selectedBrush.prevX = null;
       this.selectedBrush.prevY = null;
     }

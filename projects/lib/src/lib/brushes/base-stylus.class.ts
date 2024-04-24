@@ -1,5 +1,5 @@
 import { CanvasHelper } from "../helper/canvas.helper";
-import { Brush, BrushType } from "./base-brush.class";
+import { Brush, BrushType, LineSegment } from "./base-brush.class";
 
 export class BaseStylus implements Brush {
   name: string = 'Stylus';
@@ -9,6 +9,7 @@ export class BaseStylus implements Brush {
   size: number;
   lineCap: CanvasLineCap = 'round';
   lineJoin: CanvasLineJoin = 'round';
+
   prevX: number | null = null;
   prevY: number | null = null;
 
@@ -47,7 +48,7 @@ export class BaseStylus implements Brush {
   }
 
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    if (!this.prevX || !this.prevY) {
+    if (!ctx || !this.prevX || !this.prevY) {
       return;
     }
 
@@ -76,5 +77,17 @@ export class BaseStylus implements Brush {
 
     this.prevX = x;
     this.prevY = y;
+  }
+
+  getCurrentLineSegment(x: number, y: number): LineSegment {
+    return {
+      x,
+      y,
+      prevX: this.prevX!,
+      prevY: this.prevY!,
+      type: this.type,
+      color: this.color,
+      size: this.size,
+    };
   }
 }

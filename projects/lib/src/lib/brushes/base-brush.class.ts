@@ -17,9 +17,23 @@ export interface Brush {
   prevX: number | null;
   prevY: number | null;
 
+
   down(x: number, y: number): void;
   up(): void;
-  draw(ctx: CanvasRenderingContext2D, x: number, y: number): void;
+  draw(ctx: CanvasRenderingContext2D | null, x: number, y: number): void;
+
+  getCurrentLineSegment(x: number, y: number): LineSegment;
+
+}
+
+export interface LineSegment {
+  x: number;
+  y: number;
+  prevX?: number;
+  prevY?: number;
+  type: BrushType;
+  color: string;
+  size: number;
 }
 
 export class BaseBrush implements Brush {
@@ -30,6 +44,7 @@ export class BaseBrush implements Brush {
   size: number = 5;
   lineCap: CanvasLineCap = 'round';
   lineJoin: CanvasLineJoin = 'round';
+
   prevX: number | null = null;
   prevY: number | null = null;
 
@@ -49,8 +64,8 @@ export class BaseBrush implements Brush {
     this.prevY = null;
   }
 
-  draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    if(!this.prevX || !this.prevY){
+  draw(ctx: CanvasRenderingContext2D | null, x: number, y: number): void {
+    if(!ctx || !this.prevX || !this.prevY){
       return;
     }
 
@@ -63,5 +78,17 @@ export class BaseBrush implements Brush {
 
     this.prevX = x;
     this.prevY = y;
+  }
+
+  getCurrentLineSegment(x: number, y: number): LineSegment {
+    return {
+      x,
+      y,
+      prevX: this.prevX!,
+      prevY: this.prevY!,
+      type: this.type,
+      color: this.color,
+      size: this.size,
+    };
   }
 }
