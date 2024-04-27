@@ -3,6 +3,7 @@ import { CdkMenuModule } from '@angular/cdk/menu';
 import { BaseStylus } from '../brushes/base-stylus.class';
 import { CommonModule } from '@angular/common';
 import { BaseBrush, Brush } from '../brushes/base-brush.class';
+import { BaseEraser } from '../brushes/base-eraser.class';
 
 @Component({
   selector: 'ngx-paint-brush-picker-select',
@@ -26,7 +27,7 @@ import { BaseBrush, Brush } from '../brushes/base-brush.class';
 
     <ng-template #menu>
       <div #cdkMenu class="example-menu" cdkMenu>
-        @for(option of options;track option.name; let last = $last){
+        @for(option of brushOptions;track option.name; let last = $last){
         <button cdkMenuItem class="example-menu-item" [class.last]="last" (click)="onMenuItemClick(option)">
           <span
             class="brush-picker-select-option-icon material-symbols-outlined"
@@ -118,14 +119,11 @@ export class BrushPickerSelectComponent {
   @Input({required: true})
   brush!: Brush;
 
+  @Input({required: true})
+  brushOptions!: Brush[]
+
   @Output()
   brushChange = new EventEmitter<Brush>();
-
-  @Input()
-  options: Brush[] = [
-    new BaseBrush('Brush', {color: '#00000', size: 10}),
-    new BaseStylus('Stylus', {color: '#00000', size: 10})
-  ];
 
   onMenuItemClick(brush: Brush) {
     this.brushChange.emit(brush);

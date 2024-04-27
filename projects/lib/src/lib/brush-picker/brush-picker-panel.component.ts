@@ -16,6 +16,7 @@ import { Brush } from '../brushes/base-brush.class';
   template: `
     <ngx-paint-brush-picker-select
       [brush]="brush"
+      [brushOptions]="brushOptions"
       (brushChange)="onBrushChange($event)"
     ></ngx-paint-brush-picker-select>
 
@@ -58,6 +59,9 @@ export class BrushPickerPanelComponent implements AfterViewInit {
   @Input({ required: true })
   brush!: Brush;
 
+  @Input({ required: true })
+  brushOptions!: Brush[];
+
   @Output()
   brushChange = new EventEmitter<Brush>();
 
@@ -73,7 +77,6 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.context = this.canvas.getContext('2d')!;
     this.canvas.width = 300;
     this.canvas.height = 100;
-
     this.drawPreviewStrokeOnCanvas();
   }
 

@@ -37,6 +37,7 @@ import { Brush } from '../brushes/base-brush.class';
     >
       <ngx-paint-brush-picker-panel
         [brush]="brush"
+        [brushOptions]="brushOptions"
         (brushChange)="onBrushChange($event)"
       ></ngx-paint-brush-picker-panel>
     </ng-template>
@@ -57,8 +58,11 @@ import { Brush } from '../brushes/base-brush.class';
   `,
 })
 export class BrushPickerComponent {
-  @Input()
+  @Input({ required: true})
   brush!: Brush;
+
+  @Input({ required: true })
+  brushOptions!: Brush[];
 
   @Output()
   brushChange = new EventEmitter<Brush>();

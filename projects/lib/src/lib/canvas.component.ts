@@ -221,6 +221,10 @@ export class CanvasComponent implements AfterViewInit {
     this.selectedBrush = brush;
   }
 
+  onEraserChange(eraser: Brush) {
+    this.selectedBrush = eraser;
+  }
+
   onColorChange(color: string) {
     this.selectedBrush.color = color;
   }

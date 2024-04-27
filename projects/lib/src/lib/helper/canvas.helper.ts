@@ -6,4 +6,6 @@ export class CanvasHelper {
     ctx.lineTo(x2, y2);
     ctx.stroke();
   }
+
+
 }

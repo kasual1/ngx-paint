@@ -30,6 +30,10 @@ export class BaseStylus implements Brush {
   dynamicLineWidth = 0;
 
   constructor(name: string, options: BrushOptions) {
+    if(!options.color) {
+      throw new Error('Color is required for stylus');
+    }
+
     this.name = name;
     this.color = options.color;
     this.size = options.size;

@@ -1,15 +1,17 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { ColorPickerComponent } from './color-picker/color-picker.component';
 import { BrushPickerComponent } from './brush-picker/brush-picker.component';
-import { Brush } from './brushes/base-brush.class';
-
+import { BaseBrush, Brush } from './brushes/base-brush.class';
+import { BaseStylus } from './brushes/base-stylus.class';
+import { BaseEraser } from './brushes/base-eraser.class';
 @Component({
   selector: 'ngx-paint-action-panel',
   standalone: true,
-  imports: [BrushPickerComponent, ColorPickerComponent],
+  imports: [BrushPickerComponent,  ColorPickerComponent],
   template: `
     <ngx-paint-brush-picker
       [brush]="brush"
+      [brushOptions]="brushOptions"
       (brushChange)="onBrushChange($event)"
       (click)="onBrushPickerClick()"
       (close)="onBrushPickerClose()"
@@ -75,6 +77,9 @@ export class ActionPanelComponent {
   brushChange = new EventEmitter<Brush>();
 
   @Output()
+  eraserChange = new EventEmitter<Brush>();
+
+  @Output()
   colorChange = new EventEmitter<string>();
 
   @Output()
@@ -82,6 +87,14 @@ export class ActionPanelComponent {
 
   @Output()
   redo = new EventEmitter<void>();
+
+  brushOptions: Brush[] = [
+    new BaseBrush('Brush', { color: '#00000', size: 10 }),
+    new BaseStylus('Stylus', { color: '#00000', size: 10 }),
+    new BaseEraser('Eraser', { size: 10 }),
+  ];
+
+  eraserOptions: Brush[] = [new BaseEraser('Eraser', { size: 10 })];
 
   active = false;
 

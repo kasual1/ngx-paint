@@ -3,6 +3,7 @@ import { CanvasHelper } from "../helper/canvas.helper";
 export enum BrushType {
   Brush = 'Brush',
   Stylus = 'Stylus',
+  Eraser = 'Eraser'
 }
 
 export interface Brush {
@@ -27,7 +28,7 @@ export interface Brush {
 }
 
 export interface BrushOptions {
-  color: string;
+  color?: string;
   size: number;
   velocityMagnitude?: number;
   velocityX?: number;
@@ -60,6 +61,10 @@ export class BaseBrush implements Brush {
   prevY: number | null = null;
 
   constructor(name: string, options: BrushOptions) {
+    if(!options.color) {
+      throw new Error('Color is required for brush');
+    }
+
     this.name = name;
     this.color = options.color;
     this.size = options.size;
