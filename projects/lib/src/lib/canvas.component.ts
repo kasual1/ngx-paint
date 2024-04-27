@@ -17,6 +17,7 @@ import {
 } from './brushes/base-brush.class';
 import { BaseStylus } from '../public-api';
 import { HistoryService } from './history.service';
+import { BaseEraser } from './brushes/base-eraser.class';
 
 @Component({
   selector: 'ngx-paint',
@@ -288,6 +289,8 @@ export class CanvasComponent implements AfterViewInit {
         return new BaseBrush('Brush', options);
       case BrushType.Stylus:
         return new BaseStylus('Stylus', options);
+      case BrushType.Eraser:
+        return new BaseEraser('Eraser', options);
       default:
         throw new Error('Brush type not supported');
     }
