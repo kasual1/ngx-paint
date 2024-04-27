@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import {
   BaseBrush,
   Brush,
+  BrushOptions,
   BrushType,
   LineSegment,
 } from './brushes/base-brush.class';
@@ -107,7 +108,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new BaseBrush('Brush', '#eb4034', 20);
+  selectedBrush: Brush = new BaseStylus('Stylus', { color: '#eb4034', size: 20 });
 
   currentLine: LineSegment[] = [];
 
@@ -246,12 +247,18 @@ export class CanvasComponent implements AfterViewInit {
 
         this.selectedBrush = this.createBrush(
           lineSegment.type,
-          lineSegment.color,
-          lineSegment.size
+          {
+            color: lineSegment.color,
+            size: lineSegment.size,
+            velocityMagnitude: lineSegment.velocityMagnitude,
+            velocityX: lineSegment.velocityX,
+            velocityY: lineSegment.velocityY,
+          }
         );
 
         this.selectedBrush.prevX = lineSegment.prevX!;
         this.selectedBrush.prevY = lineSegment.prevY!;
+
         this.selectedBrush.draw(this.context!, lineSegment.x, lineSegment.y);
       }
 
@@ -268,12 +275,15 @@ export class CanvasComponent implements AfterViewInit {
     this.cursorCircleVisible = true;
   }
 
-  createBrush(type: BrushType, color: string, size: number): Brush {
+  createBrush(
+    type: BrushType,
+    options: BrushOptions
+  ): Brush {
     switch (type) {
       case BrushType.Brush:
-        return new BaseBrush('Brush', color, size);
+        return new BaseBrush('Brush', options);
       case BrushType.Stylus:
-        return new BaseStylus('Stylus', color, size);
+        return new BaseStylus('Stylus', options);
       default:
         throw new Error('Brush type not supported');
     }

@@ -123,8 +123,8 @@ export class BrushPickerSelectComponent {
 
   @Input()
   options: Brush[] = [
-    new BaseBrush('Brush', '#00000', 10),
-    new BaseStylus('Stylus', '#00000', 10)
+    new BaseBrush('Brush', {color: '#00000', size: 10}),
+    new BaseStylus('Stylus', {color: '#00000', size: 10})
   ];
 
   onMenuItemClick(brush: Brush) {

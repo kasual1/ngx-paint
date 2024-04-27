@@ -26,6 +26,14 @@ export interface Brush {
 
 }
 
+export interface BrushOptions {
+  color: string;
+  size: number;
+  velocityMagnitude?: number;
+  velocityX?: number;
+  velocityY?: number;
+}
+
 export interface LineSegment {
   x: number;
   y: number;
@@ -34,6 +42,9 @@ export interface LineSegment {
   type: BrushType;
   color: string;
   size: number;
+  velocityMagnitude?: number;
+  velocityX?: number;
+  velocityY?: number;
 }
 
 export class BaseBrush implements Brush {
@@ -48,10 +59,10 @@ export class BaseBrush implements Brush {
   prevX: number | null = null;
   prevY: number | null = null;
 
-  constructor(name: string, color: string, size: number = 2) {
+  constructor(name: string, options: BrushOptions) {
     this.name = name;
-    this.color = color;
-    this.size = size;
+    this.color = options.color;
+    this.size = options.size;
   }
 
   down(x: number, y: number): void {

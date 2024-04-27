@@ -1,5 +1,5 @@
 import { CanvasHelper } from "../helper/canvas.helper";
-import { Brush, BrushType, LineSegment } from "./base-brush.class";
+import { Brush, BrushOptions, BrushType, LineSegment } from "./base-brush.class";
 
 export class BaseStylus implements Brush {
   name: string = 'Stylus';
@@ -26,13 +26,16 @@ export class BaseStylus implements Brush {
   velocityX = 0;
   velocityY = 0;
 
-  v = 0;
+  velocityMagnitude = 0;
   dynamicLineWidth = 0;
 
-  constructor(name: string, color: string, size: number) {
+  constructor(name: string, options: BrushOptions) {
     this.name = name;
-    this.color = color;
-    this.size = size;
+    this.color = options.color;
+    this.size = options.size;
+    this.velocityMagnitude = options.velocityMagnitude ?? 0;
+    this.velocityX = options.velocityX ?? 0;
+    this.velocityY = options.velocityY ?? 0;
   }
 
   down(x: number, y: number): void {
@@ -58,10 +61,10 @@ export class BaseStylus implements Brush {
     this.velocityX *= this.friction;
     this.velocityY *= this.friction;
 
-    this.v += Math.sqrt( this.velocityX * this.velocityX + this.velocityY * this.velocityY ) - this.v;
-    this.v *= 0.6;
+    this.velocityMagnitude += Math.sqrt( this.velocityX * this.velocityX + this.velocityY * this.velocityY ) - this.velocityMagnitude;
+    this.velocityMagnitude *= 0.6;
 
-    this.dynamicLineWidth = this.size - this.v;
+    this.dynamicLineWidth = this.size - this.velocityMagnitude;
 
     if(this.dynamicLineWidth < 10) { this.dynamicLineWidth = 10; }
 
@@ -88,6 +91,9 @@ export class BaseStylus implements Brush {
       type: this.type,
       color: this.color,
       size: this.size,
+      velocityMagnitude: this.velocityMagnitude,
+      velocityX: this.velocityX,
+      velocityY: this.velocityY
     };
   }
 }
