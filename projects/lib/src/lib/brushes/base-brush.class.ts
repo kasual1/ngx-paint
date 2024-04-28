@@ -1,4 +1,5 @@
 import { CanvasHelper } from "../helper/canvas.helper";
+import { TrigonometryHelper } from "../helper/trigonometry.helper";
 
 export enum BrushType {
   Brush = 'Brush',
@@ -14,6 +15,7 @@ export interface Brush {
   size: number;
   lineCap: CanvasLineCap;
   lineJoin: CanvasLineJoin;
+  texture?: HTMLImageElement;
 
   prevX: number | null;
   prevY: number | null;
@@ -56,6 +58,7 @@ export class BaseBrush implements Brush {
   size: number = 5;
   lineCap: CanvasLineCap = 'round';
   lineJoin: CanvasLineJoin = 'round';
+  texture?: HTMLImageElement;
 
   prevX: number | null = null;
   prevY: number | null = null;
@@ -68,6 +71,9 @@ export class BaseBrush implements Brush {
     this.name = name;
     this.color = options.color;
     this.size = options.size;
+
+    this.texture = new Image();
+    this.texture.src = 'assets/brush2.png';
   }
 
   down(x: number, y: number): void {
@@ -85,12 +91,20 @@ export class BaseBrush implements Brush {
       return;
     }
 
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = this.size;
-    ctx.lineJoin = this.lineJoin;
-    ctx.lineCap = this.lineCap;
+    let distance = TrigonometryHelper.getDistance(this.prevX, this.prevY, x, y);
+    let angle = TrigonometryHelper.getAngle(this.prevX, this.prevY, x, y);
 
-    CanvasHelper.drawLine(ctx, this.prevX, this.prevY, x, y);
+    let steps = Math.ceil(distance);
+    for(let i = 0; i < distance; i ++){
+      let t = i / (steps - 1);
+      let interpolatedX = this.prevX + (x - this.prevX) * t;
+      let interpolatedY = this.prevY + (y - this.prevY) * t;
+
+      interpolatedX += Math.sin(angle) * Math.random() * this.size;
+      interpolatedY += Math.cos(angle) * Math.random() * this.size;
+
+      ctx.drawImage(this.texture!, interpolatedX - this.size / 2, interpolatedY - this.size / 2, this.size, this.size);
+    }
 
     this.prevX = x;
     this.prevY = y;
