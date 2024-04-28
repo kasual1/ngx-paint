@@ -109,7 +109,7 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new BaseBrush('Brush', { color: '#eb4034', size: 20 });
+  selectedBrush: Brush = new BaseStylus('Stylus', { color: '#eb4034', size: 20 });
 
   currentLine: LineSegment[] = [];
 

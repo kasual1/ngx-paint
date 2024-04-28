@@ -1,4 +1,5 @@
 import { CanvasHelper } from "../helper/canvas.helper";
+import { TrigonometryHelper } from "../helper/trigonometry.helper";
 import { Brush, BrushOptions, BrushType, LineSegment } from "./base-brush.class";
 
 export class BaseStylus implements Brush {
@@ -9,6 +10,7 @@ export class BaseStylus implements Brush {
   size: number;
   lineCap: CanvasLineCap = 'round';
   lineJoin: CanvasLineJoin = 'round';
+  texture?: HTMLImageElement | undefined;
 
   prevX: number | null = null;
   prevY: number | null = null;
@@ -34,6 +36,8 @@ export class BaseStylus implements Brush {
     this.velocityMagnitude = options.velocityMagnitude ?? 0;
     this.velocityX = options.velocityX ?? 0;
     this.velocityY = options.velocityY ?? 0;
+    this.texture = new Image();
+    this.texture.src = 'assets/custom_brush_1.png';
   }
 
   down(x: number, y: number): void {
@@ -71,12 +75,20 @@ export class BaseStylus implements Brush {
     x += this.velocityX;
     y += this.velocityY;
 
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = this.dynamicLineWidth;
-    ctx.lineJoin = this.lineJoin;
-    ctx.lineCap = this.lineCap;
+    let distance = TrigonometryHelper.getDistance(this.prevX, this.prevY, x, y);
+    let angle = TrigonometryHelper.getAngle(this.prevX, this.prevY, x, y);
 
-    CanvasHelper.drawLine(ctx, this.prevX, this.prevY, x, y);
+    let steps = Math.ceil(distance);
+    for(let i = 0; i < distance; i ++){
+      let t = i / (steps - 1);
+      let interpolatedX = this.prevX + (x - this.prevX) * t;
+      let interpolatedY = this.prevY + (y - this.prevY) * t;
+
+      // interpolatedX += Math.sin(angle) * Math.random() * this.dynamicLineWidth;
+      // interpolatedY += Math.cos(angle) * Math.random() * this.dynamicLineWidth;
+
+      ctx.drawImage(this.texture!, interpolatedX - this.dynamicLineWidth / 2, interpolatedY - this.dynamicLineWidth / 2, this.dynamicLineWidth, this.dynamicLineWidth);
+    }
 
     this.prevX = x;
     this.prevY = y;
