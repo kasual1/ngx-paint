@@ -89,12 +89,10 @@ export class ActionPanelComponent {
   redo = new EventEmitter<void>();
 
   brushOptions: Brush[] = [
-    new BaseBrush('Brush', { color: '#00000', size: 10 }),
-    new BaseStylus('Stylus', { color: '#00000', size: 10 }),
-    new BaseEraser('Eraser', { size: 10 }),
+    new BaseBrush('Brush', { color: '#00000', size: 20 }),
+    new BaseStylus('Stylus', { color: '#00000', size: 20 }),
+    new BaseEraser('Eraser', { size: 20 }),
   ];
-
-  eraserOptions: Brush[] = [new BaseEraser('Eraser', { size: 10 })];
 
   active = false;
 

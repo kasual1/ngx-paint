@@ -17,12 +17,6 @@ export class BaseStylus implements Brush {
   spring = 0.5;
   friction = 0.5;
 
-  distanceX = 0;
-  distanceY = 0;
-
-  accelarationX = 0;
-  accelarationY = 0;
-
   velocityX = 0;
   velocityY = 0;
 
@@ -52,6 +46,8 @@ export class BaseStylus implements Brush {
     this.prevY = null;
     this.velocityX = 0;
     this.velocityY = 0;
+    this.velocityMagnitude = 0;
+    this.dynamicLineWidth = 0;
   }
 
   draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {

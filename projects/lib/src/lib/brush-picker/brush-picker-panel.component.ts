@@ -80,16 +80,6 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.drawPreviewStrokeOnCanvas();
   }
 
-  private drawPreviewStrokeOnCanvas() {
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.context.beginPath();
-    this.context.moveTo(10, 40);
-    this.context.bezierCurveTo(100, 10, 200, 90, 290, 50);
-    this.context.lineWidth = this.brush.size;
-    this.context.strokeStyle = this.brush.color;
-    this.context.stroke();
-  }
-
   onBrushChange(brush: Brush) {
     this.brush = brush;
     this.drawPreviewStrokeOnCanvas();
@@ -101,5 +91,31 @@ export class BrushPickerPanelComponent implements AfterViewInit {
     this.brush.size = parseInt(size);
     this.drawPreviewStrokeOnCanvas();
     this.brushChange.emit(this.brush);
+  }
+
+  private drawPreviewStrokeOnCanvas() {
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const points = this.calculateBezierCurve(10, 40, 100, 10, 200, 90, 290, 50, 100);
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      if (i === 0) {
+        this.brush.down(point.x, point.y);
+      }
+      this.brush.draw(this.context, point.x, point.y);
+    }
+    this.brush.up();
+  }
+
+  private calculateBezierCurve(x1: number, y1: number, cp1x: number, cp1y: number, cp2x: number, cp2y: number, x2: number, y2: number, steps: number): {x: number, y: number}[] {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = (1 - t) ** 3 * x1 + 3 * (1 - t) ** 2 * t * cp1x + 3 * (1 - t) * t ** 2 * cp2x + t ** 3 * x2;
+      const y = (1 - t) ** 3 * y1 + 3 * (1 - t) ** 2 * t * cp1y + 3 * (1 - t) * t ** 2 * cp2y + t ** 3 * y2;
+      points.push({x, y});
+    }
+    return points;
   }
 }

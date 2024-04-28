@@ -1,9 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CdkMenuModule } from '@angular/cdk/menu';
-import { BaseStylus } from '../brushes/base-stylus.class';
 import { CommonModule } from '@angular/common';
-import { BaseBrush, Brush } from '../brushes/base-brush.class';
-import { BaseEraser } from '../brushes/base-eraser.class';
+import { Brush } from '../brushes/base-brush.class';
 
 @Component({
   selector: 'ngx-paint-brush-picker-select',
