@@ -258,6 +258,7 @@ export class CanvasComponent implements AfterViewInit {
             velocityMagnitude: lineSegment.velocityMagnitude,
             velocityX: lineSegment.velocityX,
             velocityY: lineSegment.velocityY,
+            texture: lineSegment.texture,
           }
         );
 

@@ -36,8 +36,13 @@ export class BaseStylus implements Brush {
     this.velocityMagnitude = options.velocityMagnitude ?? 0;
     this.velocityX = options.velocityX ?? 0;
     this.velocityY = options.velocityY ?? 0;
-    this.texture = new Image();
-    this.texture.src = 'assets/custom_brush_1.png';
+
+    if (options.texture) {
+      this.texture = options.texture;
+    } else {
+      this.texture = new Image();
+      this.texture.src = 'assets/custom_brush_1.png';
+    }
   }
 
   down(x: number, y: number): void {
@@ -76,16 +81,12 @@ export class BaseStylus implements Brush {
     y += this.velocityY;
 
     let distance = TrigonometryHelper.getDistance(this.prevX, this.prevY, x, y);
-    let angle = TrigonometryHelper.getAngle(this.prevX, this.prevY, x, y);
-
     let steps = Math.ceil(distance);
+
     for(let i = 0; i < distance; i ++){
       let t = i / (steps - 1);
       let interpolatedX = this.prevX + (x - this.prevX) * t;
       let interpolatedY = this.prevY + (y - this.prevY) * t;
-
-      // interpolatedX += Math.sin(angle) * Math.random() * this.dynamicLineWidth;
-      // interpolatedY += Math.cos(angle) * Math.random() * this.dynamicLineWidth;
 
       ctx.drawImage(this.texture!, interpolatedX - this.dynamicLineWidth / 2, interpolatedY - this.dynamicLineWidth / 2, this.dynamicLineWidth, this.dynamicLineWidth);
     }
@@ -105,7 +106,8 @@ export class BaseStylus implements Brush {
       size: this.size,
       velocityMagnitude: this.velocityMagnitude,
       velocityX: this.velocityX,
-      velocityY: this.velocityY
+      velocityY: this.velocityY,
+      texture: this.texture
     };
   }
 }

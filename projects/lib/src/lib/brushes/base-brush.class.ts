@@ -1,4 +1,3 @@
-import { CanvasHelper } from "../helper/canvas.helper";
 import { TrigonometryHelper } from "../helper/trigonometry.helper";
 
 export enum BrushType {
@@ -35,6 +34,7 @@ export interface BrushOptions {
   velocityMagnitude?: number;
   velocityX?: number;
   velocityY?: number;
+  texture?: HTMLImageElement;
 }
 
 export interface LineSegment {
@@ -48,6 +48,7 @@ export interface LineSegment {
   velocityMagnitude?: number;
   velocityX?: number;
   velocityY?: number;
+  texture?: HTMLImageElement;
 }
 
 export class BaseBrush implements Brush {
