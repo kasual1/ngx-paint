@@ -19,6 +19,7 @@ export interface Brush {
   prevX: number | null;
   prevY: number | null;
 
+  setColor(color: string): void;
 
   down(x: number, y: number): void;
   up(): void;
@@ -75,6 +76,10 @@ export class BaseBrush implements Brush {
 
     this.texture = new Image();
     this.texture.src = 'assets/brush2.png';
+  }
+
+  setColor(color: string): void {
+    this.color = color;
   }
 
   down(x: number, y: number): void {

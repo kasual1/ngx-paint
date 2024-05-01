@@ -18,6 +18,10 @@ export class BaseEraser implements Brush {
     this.size = options.size;
   }
 
+  setColor(color: string): void {
+    this.color = color;
+  }
+
   down(x: number, y: number): void {
     this.prevX = x;
     this.prevY = y;

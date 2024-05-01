@@ -43,6 +43,17 @@ export class BaseStylus implements Brush {
       this.texture = new Image();
       this.texture.src = 'assets/custom_brush_1.png';
     }
+
+    this.texture.onload = () => {
+      this.texture = CanvasHelper.createTintedImage(this.texture!, this.color)
+    }
+  }
+
+  setColor(color: string): void {
+    debugger;
+
+    this.color = color;
+    this.texture = CanvasHelper.createTintedImage(this.texture!, this.color);
   }
 
   down(x: number, y: number): void {
@@ -110,4 +121,5 @@ export class BaseStylus implements Brush {
       texture: this.texture
     };
   }
+
 }

@@ -218,7 +218,7 @@ export class CanvasComponent implements AfterViewInit {
 
   onBrushChange(brush: Brush) {
     brush.size = this.selectedBrush.size;
-    brush.color = this.selectedBrush.color;
+    brush.setColor(this.selectedBrush.color);
     this.selectedBrush = brush;
   }
 
@@ -227,7 +227,7 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onColorChange(color: string) {
-    this.selectedBrush.color = color;
+    this.selectedBrush.setColor(color);
   }
 
   onUndo() {
