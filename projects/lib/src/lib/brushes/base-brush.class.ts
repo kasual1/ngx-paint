@@ -75,7 +75,7 @@ export class BaseBrush implements Brush {
     this.size = options.size;
 
     this.texture = new Image();
-    this.texture.src = 'assets/brush2.png';
+    this.texture.src = 'assets/custom_brush_1.png';
   }
 
   setColor(color: string): void {

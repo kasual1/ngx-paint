@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { ColorPickerComponent } from './color-picker/color-picker.component';
 import { BrushPickerComponent } from './brush-picker/brush-picker.component';
 import { BaseBrush, Brush } from './brushes/base-brush.class';
