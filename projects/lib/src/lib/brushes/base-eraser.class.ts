@@ -49,16 +49,4 @@ export class BaseEraser implements Brush {
     this.prevX = x;
     this.prevY = y;
   }
-
-  getCurrentLineSegment(x: number, y: number): LineSegment {
-    return {
-      x,
-      y,
-      prevX: this.prevX!,
-      prevY: this.prevY!,
-      type: this.type,
-      color: this.color,
-      size: this.size,
-    };
-  }
 }

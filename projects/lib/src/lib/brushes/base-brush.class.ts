@@ -25,16 +25,11 @@ export interface Brush {
   up(): void;
   draw(ctx: CanvasRenderingContext2D | null, x: number, y: number): void;
 
-  getCurrentLineSegment(x: number, y: number): LineSegment;
-
 }
 
 export interface BrushOptions {
   color?: string;
   size: number;
-  velocityMagnitude?: number;
-  velocityX?: number;
-  velocityY?: number;
   texture?: HTMLImageElement;
 }
 
@@ -114,17 +109,5 @@ export class BaseBrush implements Brush {
 
     this.prevX = x;
     this.prevY = y;
-  }
-
-  getCurrentLineSegment(x: number, y: number): LineSegment {
-    return {
-      x,
-      y,
-      prevX: this.prevX!,
-      prevY: this.prevY!,
-      type: this.type,
-      color: this.color,
-      size: this.size,
-    };
   }
 }

@@ -3,8 +3,7 @@ import { TrigonometryHelper } from '../helper/trigonometry.helper';
 import {
   Brush,
   BrushOptions,
-  BrushType,
-  LineSegment,
+  BrushType
 } from './base-brush.class';
 
 export class BaseStylus implements Brush {
@@ -38,9 +37,6 @@ export class BaseStylus implements Brush {
     this.name = name;
     this.color = options.color;
     this.size = options.size;
-    this.velocityMagnitude = options.velocityMagnitude ?? 0;
-    this.velocityX = options.velocityX ?? 0;
-    this.velocityY = options.velocityY ?? 0;
 
     if (options.texture) {
       this.texture = options.texture;
@@ -55,8 +51,6 @@ export class BaseStylus implements Brush {
   }
 
   setColor(color: string): void {
-    debugger;
-
     this.color = color;
     this.texture = CanvasHelper.createTintedImage(this.texture!, this.color);
   }
@@ -120,21 +114,5 @@ export class BaseStylus implements Brush {
 
     this.prevX = x;
     this.prevY = y;
-  }
-
-  getCurrentLineSegment(x: number, y: number): LineSegment {
-    return {
-      x,
-      y,
-      prevX: this.prevX!,
-      prevY: this.prevY!,
-      type: this.type,
-      color: this.color,
-      size: this.size,
-      velocityMagnitude: this.velocityMagnitude,
-      velocityX: this.velocityX,
-      velocityY: this.velocityY,
-      texture: this.texture,
-    };
   }
 }

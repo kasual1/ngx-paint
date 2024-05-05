@@ -8,16 +8,9 @@ import {
 } from '@angular/core';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
-import {
-  BaseBrush,
-  Brush,
-  BrushOptions,
-  BrushType,
-  LineSegment,
-} from './brushes/base-brush.class';
+import { Brush, BrushOptions } from './brushes/base-brush.class';
 import { BaseStylus } from '../public-api';
-import { HistoryService } from './history.service';
-import { BaseEraser } from './brushes/base-eraser.class';
+import { CanvasHelper } from './helper/canvas.helper';
 
 @Component({
   selector: 'ngx-paint',
@@ -51,6 +44,8 @@ import { BaseEraser } from './brushes/base-eraser.class';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
+      <pre>Undo Stack: {{ undoOffScreenCanvases.length }}</pre>
+      <pre>Redo Stack: {{ redoOffScreenCanvases.length }}</pre>
       <pre>Cursor X: {{ cursorX }}</pre>
       <pre>Cursor Y: {{ cursorY }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
@@ -109,16 +104,22 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new BaseStylus('Stylus', { color: '#eb4034', size: 20 });
-
-  currentLine: LineSegment[] = [];
+  selectedBrush: Brush = new BaseStylus('Stylus', {
+    color: '#eb4034',
+    size: 20,
+  });
 
   cursorX = 0;
+
   cursorY = 0;
 
   cursorCircleVisible = true;
 
   mouseDown = false;
+
+  undoOffScreenCanvases: HistoryItem[] = [];
+
+  redoOffScreenCanvases: HistoryItem[] = [];
 
   get cursorCircleStyle() {
     return {
@@ -144,8 +145,6 @@ export class CanvasComponent implements AfterViewInit {
     return this.context && this.actionPanel.active === false;
   }
 
-  constructor(private historyService: HistoryService) {}
-
   ngAfterViewInit() {
     this.setupCanvas();
     this.setupEventListeners();
@@ -169,6 +168,13 @@ export class CanvasComponent implements AfterViewInit {
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
+    this.undoOffScreenCanvases.push({
+      canvas: CanvasHelper.copyCanvas(this.canvas!),
+      brushOptions: {
+        size: this.selectedBrush.size,
+        color: this.selectedBrush.color,
+      },
+    });
   }
 
   private setupEventListeners() {
@@ -190,7 +196,6 @@ export class CanvasComponent implements AfterViewInit {
     if (this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
       this.selectedBrush.down(x, y);
     }
 
@@ -201,7 +206,6 @@ export class CanvasComponent implements AfterViewInit {
     if (this.mouseDown && this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
       this.selectedBrush.draw(this.context, x, y);
     }
 
@@ -209,11 +213,15 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseUp(event: MouseEvent) {
-    this.historyService.add(this.currentLine);
-    this.currentLine = [];
-
     this.selectedBrush.up();
     this.mouseDown = false;
+    this.undoOffScreenCanvases.push({
+      canvas: CanvasHelper.copyCanvas(this.canvas!),
+      brushOptions: {
+        size: this.selectedBrush.size,
+        color: this.selectedBrush.color,
+      },
+    });
   }
 
   onBrushChange(brush: Brush) {
@@ -231,45 +239,34 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onUndo() {
-    this.historyService.undo();
-    this.redrawCanvas();
+    if (this.redoOffScreenCanvases.length === 0) {
+      const mostCurrentHistoryItem = this.undoOffScreenCanvases.pop();
+      if (mostCurrentHistoryItem) {
+        this.redoOffScreenCanvases.push(mostCurrentHistoryItem);
+      }
+    }
+
+    const historyItem = this.undoOffScreenCanvases.pop();
+    if (historyItem) {
+      this.redoOffScreenCanvases.push(historyItem);
+      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+      this.context!.drawImage(historyItem.canvas, 0, 0);
+    }
   }
 
   onRedo() {
-    this.historyService.redo();
-    this.redrawCanvas();
-  }
-
-  private redrawCanvas() {
-    const drawnLines = this.historyService.undoStack;
-
-    this.canvas = this.canvasRef.nativeElement;
-    this.context!.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    for (const line of drawnLines) {
-      for (let i = 0; i < line.length; i++) {
-        const lineSegment = line[i];
-
-        this.selectedBrush = this.createBrush(
-          lineSegment.type,
-          {
-            color: lineSegment.color,
-            size: lineSegment.size,
-            velocityMagnitude: lineSegment.velocityMagnitude,
-            velocityX: lineSegment.velocityX,
-            velocityY: lineSegment.velocityY,
-            texture: lineSegment.texture,
-          }
-        );
-
-        this.selectedBrush.prevX = lineSegment.prevX!;
-        this.selectedBrush.prevY = lineSegment.prevY!;
-
-        this.selectedBrush.draw(this.context!, lineSegment.x, lineSegment.y);
+    if (this.undoOffScreenCanvases.length === 0) {
+      const mostCurrentHistoryItem = this.redoOffScreenCanvases.pop();
+      if (mostCurrentHistoryItem) {
+        this.undoOffScreenCanvases.push(mostCurrentHistoryItem);
       }
+    }
 
-      this.selectedBrush.prevX = null;
-      this.selectedBrush.prevY = null;
+    const historyItem = this.redoOffScreenCanvases.pop();
+    if (historyItem) {
+      this.undoOffScreenCanvases.push(historyItem);
+      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+      this.context!.drawImage(historyItem.canvas, 0, 0);
     }
   }
 
@@ -280,20 +277,9 @@ export class CanvasComponent implements AfterViewInit {
   onMouseLeaveActionPanel() {
     this.cursorCircleVisible = true;
   }
+}
 
-  createBrush(
-    type: BrushType,
-    options: BrushOptions
-  ): Brush {
-    switch (type) {
-      case BrushType.Brush:
-        return new BaseBrush('Brush', options);
-      case BrushType.Stylus:
-        return new BaseStylus('Stylus', options);
-      case BrushType.Eraser:
-        return new BaseEraser('Eraser', options);
-      default:
-        throw new Error('Brush type not supported');
-    }
-  }
+export interface HistoryItem {
+  canvas: HTMLCanvasElement;
+  brushOptions: BrushOptions;
 }
