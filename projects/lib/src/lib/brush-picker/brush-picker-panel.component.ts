@@ -8,7 +8,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { BrushPickerSelectComponent } from './brush-picker-select.component';
-import { Brush } from '../brushes/base-brush.class';
+import { Brush } from '../brushes/brush.class';
 @Component({
   selector: 'ngx-paint-brush-picker-panel',
   standalone: true,

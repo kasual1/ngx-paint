@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { BrushPickerPanelComponent } from './brush-picker-panel.component';
-import { Brush } from '../brushes/base-brush.class';
+import { Brush } from '../brushes/brush.class';
 
 @Component({
   selector: 'ngx-paint-brush-picker',

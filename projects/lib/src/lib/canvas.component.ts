@@ -8,9 +8,9 @@ import {
 } from '@angular/core';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
-import { Brush, BrushOptions } from './brushes/base-brush.class';
-import { BaseStylus } from '../public-api';
+import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
+import { CursorService } from './cursor.service';
 
 @Component({
   selector: 'ngx-paint',
@@ -26,14 +26,14 @@ import { CanvasHelper } from './helper/canvas.helper';
     <div
       class="cursor-circle"
       [ngStyle]="cursorCircleStyle"
-      [hidden]="!cursorCircleVisible || actionPanel.active"
+      [hidden]="!cursorService.cursorCircleVisible || actionPanel.active"
     ></div>
 
     <canvas #canvas></canvas>
 
     <ngx-paint-action-panel
       #actionPanel
-      [brush]="selectedBrush"
+      [brush]="brush"
       (brushChange)="onBrushChange($event)"
       (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
@@ -44,14 +44,12 @@ import { CanvasHelper } from './helper/canvas.helper';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
-      <pre>Undo Stack: {{ undoOffScreenCanvases.length }}</pre>
-      <pre>Redo Stack: {{ redoOffScreenCanvases.length }}</pre>
-      <pre>Cursor X: {{ cursorX }}</pre>
-      <pre>Cursor Y: {{ cursorY }}</pre>
+      <pre>Undo Stack: {{ undoStack.length }}</pre>
+      <pre>Redo Stack: {{ redoStack.length }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
       <pre>Window Height: {{ windowHeight }}</pre>
-      <pre>Selected Brush: {{ selectedBrush.name }}</pre>
-      <pre>Selected Brush Size: {{ selectedBrush.size }}</pre>
+      <pre>Selected Brush: {{ brush.name }}</pre>
+      <pre>Selected Brush Size: {{ brush.size }}</pre>
     </div>
   `,
   styles: `
@@ -104,33 +102,19 @@ export class CanvasComponent implements AfterViewInit {
 
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new BaseStylus('Stylus', {
+  brush: Brush = new Brush('Brush', {
     color: '#eb4034',
     size: 20,
   });
 
-  cursorX = 0;
-
-  cursorY = 0;
-
-  cursorCircleVisible = true;
-
   mouseDown = false;
 
-  undoOffScreenCanvases: HistoryItem[] = [];
+  undoStack: HistoryItem[] = [];
 
-  redoOffScreenCanvases: HistoryItem[] = [];
+  redoStack: HistoryItem[] = [];
 
   get cursorCircleStyle() {
-    return {
-      'top.px': this.cursorY,
-      'left.px': this.cursorX,
-      'width.px': this.selectedBrush.size,
-      'height.px': this.selectedBrush.size,
-      'border-color': this.mouseDown
-        ? this.selectedBrush.color
-        : 'rgba(240, 240, 240, 0.5)',
-    };
+    return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
   }
 
   get windowWidth() {
@@ -145,34 +129,22 @@ export class CanvasComponent implements AfterViewInit {
     return this.context && this.actionPanel.active === false;
   }
 
+  constructor(public cursorService: CursorService) {}
+
   ngAfterViewInit() {
     this.setupCanvas();
     this.setupEventListeners();
     this.resizeCanvas();
   }
 
-  private updateCursorCirclePosition(event: MouseEvent) {
-    const circleRadius = this.selectedBrush.size / 2;
-    const circleBorder = 1;
-
-    this.cursorX = Math.min(
-      Math.max(event.clientX, circleRadius),
-      window.innerWidth - circleRadius - circleBorder
-    );
-    this.cursorY = Math.min(
-      Math.max(event.clientY, circleRadius),
-      window.innerHeight - circleRadius - circleBorder
-    );
-  }
-
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
-    this.undoOffScreenCanvases.push({
+    this.undoStack.push({
       canvas: CanvasHelper.copyCanvas(this.canvas!),
       brushOptions: {
-        size: this.selectedBrush.size,
-        color: this.selectedBrush.color,
+        size: this.brush.size,
+        color: this.brush.color,
       },
     });
   }
@@ -196,7 +168,7 @@ export class CanvasComponent implements AfterViewInit {
     if (this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.selectedBrush.down(x, y);
+      this.brush.down(x, y);
     }
 
     this.mouseDown = true;
@@ -206,76 +178,77 @@ export class CanvasComponent implements AfterViewInit {
     if (this.mouseDown && this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.selectedBrush.draw(this.context, x, y);
+      this.brush.draw(this.context!, x, y);
     }
 
-    this.updateCursorCirclePosition(event);
+    this.cursorService.updateCursorCirclePosition(
+      this.brush.size / 2,
+      1,
+      event
+    );
   }
 
   onMouseUp(event: MouseEvent) {
-    this.selectedBrush.up();
-    this.mouseDown = false;
-    this.undoOffScreenCanvases.push({
-      canvas: CanvasHelper.copyCanvas(this.canvas!),
-      brushOptions: {
-        size: this.selectedBrush.size,
-        color: this.selectedBrush.color,
-      },
-    });
+    if (this.canvas) {
+      this.brush.up();
+      this.mouseDown = false;
+      this.undoStack.push({
+        canvas: CanvasHelper.copyCanvas(this.canvas),
+        brushOptions: {
+          size: this.brush.size,
+          color: this.brush.color,
+        },
+      });
+    }
   }
 
-  onBrushChange(brush: Brush) {
-    brush.size = this.selectedBrush.size;
-    brush.setColor(this.selectedBrush.color);
-    this.selectedBrush = brush;
+  onMouseEnterActionPanel() {
+    this.cursorService.cursorCircleVisible = false;
   }
 
-  onEraserChange(eraser: Brush) {
-    this.selectedBrush = eraser;
+  onMouseLeaveActionPanel() {
+    this.cursorService.cursorCircleVisible = true;
+  }
+
+  onBrushChange(options: BrushOptions) {
+    this.brush.color = options.color!;
+    this.brush.size = options.size;
   }
 
   onColorChange(color: string) {
-    this.selectedBrush.setColor(color);
+    this.brush.color = color;
   }
 
   onUndo() {
-    if (this.redoOffScreenCanvases.length === 0) {
-      const mostCurrentHistoryItem = this.undoOffScreenCanvases.pop();
+    if (this.redoStack.length === 0) {
+      const mostCurrentHistoryItem = this.undoStack.pop();
       if (mostCurrentHistoryItem) {
-        this.redoOffScreenCanvases.push(mostCurrentHistoryItem);
+        this.redoStack.push(mostCurrentHistoryItem);
       }
     }
 
-    const historyItem = this.undoOffScreenCanvases.pop();
+    const historyItem = this.undoStack.pop();
     if (historyItem) {
-      this.redoOffScreenCanvases.push(historyItem);
+      this.redoStack.push(historyItem);
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
       this.context!.drawImage(historyItem.canvas, 0, 0);
     }
   }
 
   onRedo() {
-    if (this.undoOffScreenCanvases.length === 0) {
-      const mostCurrentHistoryItem = this.redoOffScreenCanvases.pop();
+    if (this.undoStack.length === 0) {
+      const mostCurrentHistoryItem = this.redoStack.pop();
       if (mostCurrentHistoryItem) {
-        this.undoOffScreenCanvases.push(mostCurrentHistoryItem);
+        this.undoStack.push(mostCurrentHistoryItem);
       }
     }
 
-    const historyItem = this.redoOffScreenCanvases.pop();
+    const historyItem = this.redoStack.pop();
     if (historyItem) {
-      this.undoOffScreenCanvases.push(historyItem);
+      this.undoStack.push(historyItem);
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
       this.context!.drawImage(historyItem.canvas, 0, 0);
     }
-  }
-
-  onMouseEnterActionPanel() {
-    this.cursorCircleVisible = false;
-  }
-
-  onMouseLeaveActionPanel() {
-    this.cursorCircleVisible = true;
   }
 }
 
