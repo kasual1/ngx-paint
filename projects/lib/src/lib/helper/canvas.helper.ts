@@ -28,6 +28,14 @@ export class CanvasHelper {
     return tintedImage;
   }
 
+  static emptyCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+    const offScreenCanvas = document.createElement('canvas');
+    offScreenCanvas.width = canvas.width;
+    offScreenCanvas.height = canvas.height;
+
+    return offScreenCanvas;
+  }
+
   static copyCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
     const offScreenCanvas = document.createElement('canvas');
     const offScreenContext = offScreenCanvas.getContext('2d')!;

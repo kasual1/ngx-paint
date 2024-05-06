@@ -44,8 +44,8 @@ import { CursorService } from './cursor.service';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
-      <pre>Undo Stack: {{ undoStack.length }}</pre>
-      <pre>Redo Stack: {{ redoStack.length }}</pre>
+      <pre>Undo Stack: {{ undoStack.length }} ({{ undoStackSize }})</pre>
+      <pre>Redo Stack: {{ redoStack.length }} ({{ redoStackSize }})</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
       <pre>Window Height: {{ windowHeight }}</pre>
       <pre>Selected Brush: {{ brush.name }}</pre>
@@ -100,6 +100,8 @@ export class CanvasComponent implements AfterViewInit {
 
   canvas: HTMLCanvasElement | null = null;
 
+  previousCanvas: HTMLCanvasElement | null = null;
+
   context: CanvasRenderingContext2D | null = null;
 
   brush: Brush = new Brush('Brush', {
@@ -129,6 +131,18 @@ export class CanvasComponent implements AfterViewInit {
     return this.context && this.actionPanel.active === false;
   }
 
+  get undoStackSize() {
+   return this.undoStack.reduce((acc, item) => {
+      return acc + this.getArrayByteSize(item.diffs);
+    }, 0);
+  }
+
+  get redoStackSize() {
+    return this.redoStack.reduce((acc, item) => {
+      return acc + this.getArrayByteSize(item.diffs);
+    }, 0);
+  }
+
   constructor(public cursorService: CursorService) {}
 
   ngAfterViewInit() {
@@ -140,13 +154,6 @@ export class CanvasComponent implements AfterViewInit {
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
-    this.undoStack.push({
-      canvas: CanvasHelper.copyCanvas(this.canvas!),
-      brushOptions: {
-        size: this.brush.size,
-        color: this.brush.color,
-      },
-    });
   }
 
   private setupEventListeners() {
@@ -166,6 +173,8 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseDown(event: MouseEvent) {
     if (this.canDraw) {
+      this.redoStack = [];
+      this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
       this.brush.down(x, y);
@@ -189,16 +198,20 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onMouseUp(event: MouseEvent) {
-    if (this.canvas) {
+    if (this.previousCanvas && this.canvas) {
       this.brush.up();
       this.mouseDown = false;
+
+      const diffs = this.calculateCanvasDiff(this.previousCanvas, this.canvas);
+
       this.undoStack.push({
-        canvas: CanvasHelper.copyCanvas(this.canvas),
+        diffs,
         brushOptions: {
-          size: this.brush.size,
           color: this.brush.color,
+          size: this.brush.size,
         },
       });
+
     }
   }
 
@@ -210,9 +223,8 @@ export class CanvasComponent implements AfterViewInit {
     this.cursorService.cursorCircleVisible = true;
   }
 
-  onBrushChange(options: BrushOptions) {
-    this.brush.color = options.color!;
-    this.brush.size = options.size;
+  onBrushChange(brush: Brush) {
+    this.brush = brush;
   }
 
   onColorChange(color: string) {
@@ -220,39 +232,98 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onUndo() {
-    if (this.redoStack.length === 0) {
-      const mostCurrentHistoryItem = this.undoStack.pop();
-      if (mostCurrentHistoryItem) {
-        this.redoStack.push(mostCurrentHistoryItem);
-      }
-    }
+    if (this.undoStack.length > 0) {
+      const lastItem = this.undoStack.pop();
+      this.redoStack.push(lastItem!);
 
-    const historyItem = this.undoStack.pop();
-    if (historyItem) {
-      this.redoStack.push(historyItem);
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.drawImage(historyItem.canvas, 0, 0);
+
+      for (const item of this.undoStack) {
+        this.applyCanvasDiff(this.context!, item.diffs);
+        this.brush = new Brush('Brush', item.brushOptions);
+      }
     }
   }
 
   onRedo() {
-    if (this.undoStack.length === 0) {
-      const mostCurrentHistoryItem = this.redoStack.pop();
-      if (mostCurrentHistoryItem) {
-        this.undoStack.push(mostCurrentHistoryItem);
+    if (this.redoStack.length > 0) {
+      const lastItem = this.redoStack.pop();
+      this.undoStack.push(lastItem!);
+
+      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+
+      for (const item of this.undoStack) {
+        this.applyCanvasDiff(this.context!, item.diffs);
+        this.brush = new Brush('Brush', item.brushOptions);
+      }
+    }
+  }
+
+  getArrayByteSize(array: PixelDiff[]): number {
+    const sizeInBytes = array.length;
+    const sizeInMegabytes = (sizeInBytes * 6) / 8 / 1024 / 1024;
+    return sizeInMegabytes;
+  }
+
+  calculateCanvasDiff(
+    oldCanvas: HTMLCanvasElement,
+    newCanvas: HTMLCanvasElement
+  ): PixelDiff[] {
+    const oldContext = oldCanvas.getContext('2d')!;
+    const newContext = newCanvas.getContext('2d')!;
+
+    const oldImageData = oldContext.getImageData(
+      0,
+      0,
+      oldCanvas.width,
+      oldCanvas.height
+    );
+    const newImageData = newContext.getImageData(
+      0,
+      0,
+      newCanvas.width,
+      newCanvas.height
+    );
+
+    const pixelDiffs: PixelDiff[] = [];
+
+    for (let y = 0; y < oldCanvas.height; y++) {
+      for (let x = 0; x < oldCanvas.width; x++) {
+        const index = (y * oldCanvas.width + x) * 4;
+
+        const oldPixel = oldImageData.data.slice(index, index + 4);
+        const newPixel = newImageData.data.slice(index, index + 4);
+
+        if (oldPixel.join(',') !== newPixel.join(',')) {
+          const [r, g, b, a] = newPixel;
+          const alpha = a / 255; // Normalize alpha to 0-1 range
+          pixelDiffs.push({
+            x,
+            y,
+            color: `rgba(${r},${g},${b},${alpha})`,
+          });
+        }
       }
     }
 
-    const historyItem = this.redoStack.pop();
-    if (historyItem) {
-      this.undoStack.push(historyItem);
-      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.drawImage(historyItem.canvas, 0, 0);
+    return pixelDiffs;
+  }
+
+  applyCanvasDiff(context: CanvasRenderingContext2D, diffs: PixelDiff[]) {
+    for (const dif of diffs) {
+      context.fillStyle = dif.color;
+      context.fillRect(dif.x, dif.y, 1, 1);
     }
   }
 }
 
 export interface HistoryItem {
-  canvas: HTMLCanvasElement;
+  diffs: PixelDiff[];
   brushOptions: BrushOptions;
+}
+
+export interface PixelDiff {
+  x: number;
+  y: number;
+  color: string;
 }
