@@ -132,7 +132,7 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   get undoStackSize() {
-   return this.undoStack.reduce((acc, item) => {
+    return this.undoStack.reduce((acc, item) => {
       return acc + this.getArrayByteSize(item.diffs);
     }, 0);
   }
@@ -154,6 +154,14 @@ export class CanvasComponent implements AfterViewInit {
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
+    this.undoStack.push({
+      canvas: CanvasHelper.copyCanvas(this.canvas),
+      diffs: [],
+      brushOptions: {
+        color: this.brush.color,
+        size: this.brush.size,
+      },
+    });
   }
 
   private setupEventListeners() {
@@ -202,16 +210,14 @@ export class CanvasComponent implements AfterViewInit {
       this.brush.up();
       this.mouseDown = false;
 
-      const diffs = this.calculateCanvasDiff(this.previousCanvas, this.canvas);
-
       this.undoStack.push({
-        diffs,
+        canvas: CanvasHelper.copyCanvas(this.canvas),
+        diffs: this.calculateCanvasDiff(this.previousCanvas, this.canvas),
         brushOptions: {
           color: this.brush.color,
           size: this.brush.size,
         },
       });
-
     }
   }
 
@@ -233,29 +239,35 @@ export class CanvasComponent implements AfterViewInit {
 
   onUndo() {
     if (this.undoStack.length > 0) {
+
+      if(this.redoStack.length === 0){
+        const lastItem = this.undoStack.pop();
+        this.redoStack.push(lastItem!);
+      }
+
       const lastItem = this.undoStack.pop();
       this.redoStack.push(lastItem!);
 
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-
-      for (const item of this.undoStack) {
-        this.applyCanvasDiff(this.context!, item.diffs);
-        this.brush = new Brush('Brush', item.brushOptions);
-      }
+      this.context!.drawImage(lastItem!.canvas, 0, 0);
+      this.brush = new Brush('Brush', lastItem!.brushOptions);
     }
   }
 
   onRedo() {
     if (this.redoStack.length > 0) {
+
+      if(this.undoStack.length === 0){
+        const lastItem = this.redoStack.pop();
+        this.undoStack.push(lastItem!);
+      }
+
       const lastItem = this.redoStack.pop();
       this.undoStack.push(lastItem!);
 
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-
-      for (const item of this.undoStack) {
-        this.applyCanvasDiff(this.context!, item.diffs);
-        this.brush = new Brush('Brush', item.brushOptions);
-      }
+      this.context!.drawImage(lastItem!.canvas, 0, 0);
+      this.brush = new Brush('Brush', lastItem!.brushOptions);
     }
   }
 
@@ -318,6 +330,7 @@ export class CanvasComponent implements AfterViewInit {
 }
 
 export interface HistoryItem {
+  canvas: HTMLCanvasElement;
   diffs: PixelDiff[];
   brushOptions: BrushOptions;
 }
