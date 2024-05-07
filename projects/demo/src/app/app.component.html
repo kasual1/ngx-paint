@@ -1,1 +1,4 @@
-<ngx-paint></ngx-paint>
+<ngx-paint
+  (undoStackChange)="onUndoStackChange($event)"
+  (redoStackChange)="onRedoStackChange($event)"
+></ngx-paint>

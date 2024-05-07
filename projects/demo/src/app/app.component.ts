@@ -23,4 +23,12 @@ import { MatButtonModule } from '@angular/material/button';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
+
+  onUndoStackChange(undoStack: any[]) {
+    console.log(undoStack);
+  }
+
+  onRedoStackChange(redoStack: any[]) {
+    console.log(redoStack);
+  }
 }
