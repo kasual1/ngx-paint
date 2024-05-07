@@ -149,6 +149,7 @@ export class CanvasComponent implements AfterViewInit {
     this.setupCanvas();
     this.setupEventListeners();
     this.resizeCanvas();
+    this.loadUndoStack();
   }
 
   private setupCanvas() {
@@ -181,7 +182,18 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseDown(event: MouseEvent) {
     if (this.canDraw) {
-      this.redoStack = [];
+
+      if(this.redoStack.length > 0){
+        this.redoStack = [];
+        this.undoStack.push({
+          canvas: CanvasHelper.copyCanvas(this.canvas!),
+          diffs: this.calculateCanvasDiff(this.previousCanvas!, this.canvas!),
+          brushOptions: {
+            color: this.brush.color,
+            size: this.brush.size,
+          },
+        });
+      }
       this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
@@ -218,6 +230,7 @@ export class CanvasComponent implements AfterViewInit {
           size: this.brush.size,
         },
       });
+
     }
   }
 
@@ -327,6 +340,46 @@ export class CanvasComponent implements AfterViewInit {
       context.fillRect(dif.x, dif.y, 1, 1);
     }
   }
+
+  saveUndoStack() {
+    const simplifiedUndoStack = this.undoStack.map(item => ({
+      diffs: item.diffs, // Assuming diffs is a property of the items in the undoStack
+      brushOptions: item.brushOptions
+    }));
+
+    localStorage.setItem('undoStack', JSON.stringify(simplifiedUndoStack));
+  }
+
+  loadUndoStack() {
+    const savedUndoStack = localStorage.getItem('undoStack');
+
+    if (savedUndoStack) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      canvas.width = this.canvas!.width;
+      canvas.height = this.canvas!.height;
+
+      this.undoStack = JSON.parse(savedUndoStack).map((item: any) => {
+        this.applyCanvasDiff(context!, item.diffs);
+
+        return {
+          canvas: CanvasHelper.copyCanvas(canvas),
+          diffs: item.diffs,
+          brushOptions: item.brushOptions
+        };
+      });
+
+      // Restore the canvas state to the last item in the undo stack
+      if (this.undoStack.length > 0) {
+        const lastItem = this.undoStack[this.undoStack.length - 1];
+        this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+        this.context!.drawImage(lastItem.canvas, 0, 0);
+        this.brush = new Brush('Brush', lastItem.brushOptions);
+      }
+    }
+  }
+
 }
 
 export interface HistoryItem {
