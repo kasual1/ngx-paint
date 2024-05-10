@@ -34,6 +34,10 @@ export class AppComponent {
   dbInitialized = false;
 
   constructor() {
+    this.initializeWorker();
+  }
+
+  initializeWorker() {
     if (typeof Worker !== 'undefined') {
       this.worker = new Worker(new URL('./canvas.worker', import.meta.url), {
         type: 'module',
@@ -54,6 +58,7 @@ export class AppComponent {
       case 'restoreHistory':
         this.undoStack = event.data.data;
         this.canvasComponent.drawImageDataToCanvas(this.undoStack[this.undoStack.length - 1].snapshot);
+        this.canvasComponent.historyIndex = this.undoStack.length;
         break;
     }
   }
