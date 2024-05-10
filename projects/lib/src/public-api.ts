@@ -7,5 +7,4 @@ export * from './lib/color-picker/color-picker.component';
 export * from './lib/color-picker/color-picker-panel.component';
 export * from './lib/brush-picker/brush-picker.component';
 export * from './lib/brush-picker/brush-picker-panel.component';
-export * from './lib/brushes/base-brush.class';
-export * from './lib/brushes/base-stylus.class';
+export * from './lib/brushes/brush.class';

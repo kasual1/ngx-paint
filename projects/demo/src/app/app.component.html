@@ -1,1 +1,9 @@
-<ngx-paint></ngx-paint>
+
+@if(dbInitialized === true){
+  <ngx-paint
+  [undoStack]="undoStack"
+  (historyChange)="onHistoryChange($event)"
+  (redoStackChange)="onRedoStackChange($event)"
+></ngx-paint>
+}
+

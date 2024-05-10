@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CdkMenuModule } from '@angular/cdk/menu';
 import { CommonModule } from '@angular/common';
-import { Brush } from '../brushes/base-brush.class';
+import { Brush } from '../brushes/brush.class';
 
 @Component({
   selector: 'ngx-paint-brush-picker-select',
@@ -46,7 +46,7 @@ import { Brush } from '../brushes/base-brush.class';
     .example-menu {
       display: inline-flex;
       flex-direction: column;
-      width: 100%
+      width: 100%;
       background-color: rgba(255, 255, 255);
       padding: 6px 0;
       border-bottom-left-radius: 4px;

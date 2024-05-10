@@ -2,22 +2,21 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
   HostListener,
+  Input,
+  OnChanges,
+  Output,
+  SimpleChanges,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
 import { ActionPanelComponent } from './action-panel.component';
 import { CommonModule } from '@angular/common';
-import {
-  BaseBrush,
-  Brush,
-  BrushOptions,
-  BrushType,
-  LineSegment,
-} from './brushes/base-brush.class';
-import { BaseStylus } from '../public-api';
-import { HistoryService } from './history.service';
-import { BaseEraser } from './brushes/base-eraser.class';
+import { Brush, BrushOptions } from './brushes/brush.class';
+import { CanvasHelper } from './helper/canvas.helper';
+import { CursorService } from './cursor.service';
+import { last } from 'rxjs';
 
 @Component({
   selector: 'ngx-paint',
@@ -33,14 +32,14 @@ import { BaseEraser } from './brushes/base-eraser.class';
     <div
       class="cursor-circle"
       [ngStyle]="cursorCircleStyle"
-      [hidden]="!cursorCircleVisible || actionPanel.active"
+      [hidden]="!cursorService.cursorCircleVisible || actionPanel.active"
     ></div>
 
     <canvas #canvas></canvas>
 
     <ngx-paint-action-panel
       #actionPanel
-      [brush]="selectedBrush"
+      [brush]="brush"
       (brushChange)="onBrushChange($event)"
       (colorChange)="onColorChange($event)"
       (redo)="onRedo()"
@@ -51,12 +50,12 @@ import { BaseEraser } from './brushes/base-eraser.class';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
-      <pre>Cursor X: {{ cursorX }}</pre>
-      <pre>Cursor Y: {{ cursorY }}</pre>
+      <pre>Undo Stack: {{ undoStack.length }}</pre>
+      <pre>Redo Stack: {{ redoStack.length }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
       <pre>Window Height: {{ windowHeight }}</pre>
-      <pre>Selected Brush: {{ selectedBrush.name }}</pre>
-      <pre>Selected Brush Size: {{ selectedBrush.size }}</pre>
+      <pre>Selected Brush: {{ brush.name }}</pre>
+      <pre>Selected Brush Size: {{ brush.size }}</pre>
     </div>
   `,
   styles: `
@@ -99,6 +98,21 @@ export class CanvasComponent implements AfterViewInit {
     this.resizeCanvas();
   }
 
+  @Input()
+  undoStack: HistoryItem[] = [];
+
+  @Input()
+  redoStack: HistoryItem[] = [];
+
+  @Output()
+  undoStackChange = new EventEmitter<StackEvent>();
+
+  @Output()
+  redoStackChange = new EventEmitter<StackEvent>();
+
+  @Output()
+  historyChange = new EventEmitter<StackEvent>();
+
   @ViewChild('actionPanel')
   actionPanel!: ActionPanelComponent;
 
@@ -107,29 +121,21 @@ export class CanvasComponent implements AfterViewInit {
 
   canvas: HTMLCanvasElement | null = null;
 
+  previousCanvas: HTMLCanvasElement | null = null;
+
   context: CanvasRenderingContext2D | null = null;
 
-  selectedBrush: Brush = new BaseStylus('Stylus', { color: '#eb4034', size: 20 });
-
-  currentLine: LineSegment[] = [];
-
-  cursorX = 0;
-  cursorY = 0;
-
-  cursorCircleVisible = true;
+  brush: Brush = new Brush('Brush', {
+    color: '#eb4034',
+    size: 20,
+  });
 
   mouseDown = false;
 
+  lastUndoRedoAction: 'undo' | 'redo' | null = null;
+
   get cursorCircleStyle() {
-    return {
-      'top.px': this.cursorY,
-      'left.px': this.cursorX,
-      'width.px': this.selectedBrush.size,
-      'height.px': this.selectedBrush.size,
-      'border-color': this.mouseDown
-        ? this.selectedBrush.color
-        : 'rgba(240, 240, 240, 0.5)',
-    };
+    return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
   }
 
   get windowWidth() {
@@ -144,26 +150,12 @@ export class CanvasComponent implements AfterViewInit {
     return this.context && this.actionPanel.active === false;
   }
 
-  constructor(private historyService: HistoryService) {}
+  constructor(public cursorService: CursorService) {}
 
   ngAfterViewInit() {
     this.setupCanvas();
     this.setupEventListeners();
     this.resizeCanvas();
-  }
-
-  private updateCursorCirclePosition(event: MouseEvent) {
-    const circleRadius = this.selectedBrush.size / 2;
-    const circleBorder = 1;
-
-    this.cursorX = Math.min(
-      Math.max(event.clientX, circleRadius),
-      window.innerWidth - circleRadius - circleBorder
-    );
-    this.cursorY = Math.min(
-      Math.max(event.clientY, circleRadius),
-      window.innerHeight - circleRadius - circleBorder
-    );
   }
 
   private setupCanvas() {
@@ -188,10 +180,34 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseDown(event: MouseEvent) {
     if (this.canDraw) {
+      if (this.redoStack.length > 0) {
+        this.clearRedoStack();
+
+        const historyItem = {
+          uuid: this.generateUuid(),
+          snapshot: this.canvas!.getContext('2d')!.getImageData(
+            0,
+            0,
+            this.canvas!.width,
+            this.canvas!.height
+          ),
+          brushOptions: {
+            color: this.brush.color,
+            size: this.brush.size,
+          },
+        };
+
+        this.pushToUndoStack(historyItem);
+      }
+
+      if(this.undoStack.length === 0 && this.redoStack.length === 0){
+        this.addBlankCanvasToUndoStack();
+      }
+
+      this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
-      this.selectedBrush.down(x, y);
+      this.brush.down(x, y);
     }
 
     this.mouseDown = true;
@@ -201,99 +217,175 @@ export class CanvasComponent implements AfterViewInit {
     if (this.mouseDown && this.canDraw) {
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
-      this.currentLine.push(this.selectedBrush.getCurrentLineSegment(x, y));
-      this.selectedBrush.draw(this.context, x, y);
+      this.brush.draw(this.context!, x, y);
     }
 
-    this.updateCursorCirclePosition(event);
+    this.cursorService.updateCursorCirclePosition(
+      this.brush.size / 2,
+      1,
+      event
+    );
   }
 
   onMouseUp(event: MouseEvent) {
-    this.historyService.add(this.currentLine);
-    this.currentLine = [];
+    if (this.previousCanvas && this.canvas) {
+      this.brush.up();
+      this.mouseDown = false;
 
-    this.selectedBrush.up();
-    this.mouseDown = false;
-  }
-
-  onBrushChange(brush: Brush) {
-    brush.size = this.selectedBrush.size;
-    brush.setColor(this.selectedBrush.color);
-    this.selectedBrush = brush;
-  }
-
-  onEraserChange(eraser: Brush) {
-    this.selectedBrush = eraser;
-  }
-
-  onColorChange(color: string) {
-    this.selectedBrush.setColor(color);
-  }
-
-  onUndo() {
-    this.historyService.undo();
-    this.redrawCanvas();
-  }
-
-  onRedo() {
-    this.historyService.redo();
-    this.redrawCanvas();
-  }
-
-  private redrawCanvas() {
-    const drawnLines = this.historyService.undoStack;
-
-    this.canvas = this.canvasRef.nativeElement;
-    this.context!.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    for (const line of drawnLines) {
-      for (let i = 0; i < line.length; i++) {
-        const lineSegment = line[i];
-
-        this.selectedBrush = this.createBrush(
-          lineSegment.type,
-          {
-            color: lineSegment.color,
-            size: lineSegment.size,
-            velocityMagnitude: lineSegment.velocityMagnitude,
-            velocityX: lineSegment.velocityX,
-            velocityY: lineSegment.velocityY,
-            texture: lineSegment.texture,
-          }
-        );
-
-        this.selectedBrush.prevX = lineSegment.prevX!;
-        this.selectedBrush.prevY = lineSegment.prevY!;
-
-        this.selectedBrush.draw(this.context!, lineSegment.x, lineSegment.y);
-      }
-
-      this.selectedBrush.prevX = null;
-      this.selectedBrush.prevY = null;
+      const historyItem = {
+        uuid: this.generateUuid(),
+        snapshot: this.canvas!.getContext('2d')!.getImageData(
+          0,
+          0,
+          this.canvas!.width,
+          this.canvas!.height
+        ),
+        brushOptions: {
+          color: this.brush.color,
+          size: this.brush.size,
+        },
+      };
+      this.pushToUndoStack(historyItem);
+      this.historyChange.emit({ type: 'push', item: historyItem });
     }
   }
 
   onMouseEnterActionPanel() {
-    this.cursorCircleVisible = false;
+    this.cursorService.cursorCircleVisible = false;
   }
 
   onMouseLeaveActionPanel() {
-    this.cursorCircleVisible = true;
+    this.cursorService.cursorCircleVisible = true;
   }
 
-  createBrush(
-    type: BrushType,
-    options: BrushOptions
-  ): Brush {
-    switch (type) {
-      case BrushType.Brush:
-        return new BaseBrush('Brush', options);
-      case BrushType.Stylus:
-        return new BaseStylus('Stylus', options);
-      case BrushType.Eraser:
-        return new BaseEraser('Eraser', options);
-      default:
-        throw new Error('Brush type not supported');
+  onBrushChange(brush: Brush) {
+    this.brush = brush;
+  }
+
+  onColorChange(color: string) {
+    this.brush.color = color;
+  }
+
+  onUndo() {
+    if (this.undoStack.length > 0) {
+
+      if (this.lastUndoRedoAction === 'redo' || this.lastUndoRedoAction === null) {
+        const lastItem = this.popFromUndoStack();
+        this.pushToRedoStack(lastItem!);
+      }
+
+      const lastItem = this.popFromUndoStack();
+      this.pushToRedoStack(lastItem!);
+
+      this.drawImageDataToCanvas(lastItem!.snapshot);
+      this.brush = new Brush('Brush', lastItem!.brushOptions);
+
+      this.lastUndoRedoAction = 'undo';
     }
   }
+
+  onRedo() {
+    if (this.redoStack.length > 0) {
+
+      if (this.lastUndoRedoAction === 'undo' || this.lastUndoRedoAction === null) {
+        const lastItem = this.popFromRedoStack();
+        this.pushToUndoStack(lastItem!);
+      }
+
+      const lastItem = this.popFromRedoStack();
+      this.pushToUndoStack(lastItem!);
+
+      this.drawImageDataToCanvas(lastItem!.snapshot);
+      this.brush = new Brush('Brush', lastItem!.brushOptions);
+
+      this.lastUndoRedoAction = 'redo';
+    }
+  }
+
+  drawImageDataToCanvas(imageData: ImageData) {
+    if (this.context && this.canvas) {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.context.putImageData(imageData, 0, 0);
+    }
+  }
+
+  addBlankCanvasToUndoStack() {
+    const historyItem = {
+      uuid: this.generateUuid(),
+      snapshot: this.canvas!.getContext('2d')!.getImageData(
+        0,
+        0,
+        this.canvas!.width,
+        this.canvas!.height
+      ),
+      brushOptions: {
+        color: this.brush.color,
+        size: this.brush.size,
+      },
+    };
+    this.pushToUndoStack(historyItem);
+    this.historyChange.emit({ type: 'push', item: historyItem });
+  }
+
+  clearCanvas() {
+    if (this.context && this.canvas) {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+  }
+
+  pushToUndoStack(item: HistoryItem) {
+    this.undoStack.push(item);
+    this.undoStackChange.emit({ type: 'push', item: item });
+  }
+
+  pushToRedoStack(item: HistoryItem) {
+    this.redoStack.push(item);
+    this.redoStackChange.emit({ type: 'push', item: item });
+  }
+
+  popFromUndoStack(): HistoryItem | undefined {
+    const item = this.undoStack.pop();
+    this.undoStackChange.emit({ type: 'pop', item: item });
+    return item;
+  }
+
+  popFromRedoStack(): HistoryItem | undefined {
+    const item = this.redoStack.pop();
+    this.redoStackChange.emit({ type: 'pop', item: item });
+    return item;
+  }
+
+  clearUndoStack() {
+    this.undoStack = [];
+    this.undoStackChange.emit({ type: 'clear', item: undefined });
+  }
+
+  clearRedoStack() {
+    const lastItem = this.redoStack[this.redoStack.length - 1];
+    this.redoStack = [];
+    this.redoStackChange.emit({ type: 'clear', item: lastItem });
+    this.lastUndoRedoAction = null;
+  }
+
+  private generateUuid(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
+  }
+}
+
+export interface HistoryItem {
+  uuid: string;
+  snapshot: ImageData;
+  brushOptions: BrushOptions;
+}
+
+export interface StackEvent {
+  type: 'push' | 'pop' | 'clear';
+  item: HistoryItem | undefined;
 }
