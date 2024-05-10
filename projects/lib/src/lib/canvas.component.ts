@@ -260,6 +260,23 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onUndo() {
+    if(this.undoStack.length === 0) {
+      const historyItem = {
+        uuid: this.generateUuid(),
+        snapshot: this.canvas!.getContext('2d')!.getImageData(
+          0,
+          0,
+          this.canvas!.width,
+          this.canvas!.height
+        ),
+        brushOptions: {
+          color: this.brush.color,
+          size: this.brush.size,
+        },
+      };
+      this.clearCanvas();
+    }
+
     if (this.undoStack.length > 0) {
       if (this.redoStack.length === 0) {
         const lastItem = this.popFromUndoStack();
@@ -276,10 +293,6 @@ export class CanvasComponent implements AfterViewInit {
 
   onRedo() {
     if (this.redoStack.length > 0) {
-      if (this.undoStack.length === 0) {
-        const lastItem = this.popFromRedoStack();
-        this.pushToUndoStack(lastItem!);
-      }
 
       const lastItem = this.popFromRedoStack();
       this.pushToUndoStack(lastItem!);
@@ -293,6 +306,12 @@ export class CanvasComponent implements AfterViewInit {
     if (this.context && this.canvas) {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.context.putImageData(imageData, 0, 0);
+    }
+  }
+
+  clearCanvas() {
+    if (this.context && this.canvas) {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
   }
 
