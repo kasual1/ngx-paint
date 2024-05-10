@@ -40,7 +40,6 @@ export class AppComponent {
       });
       this.worker.onmessage = this.handleMessage.bind(this);
       this.worker.postMessage({ type: 'initializeIndexedDB' });
-      // this.worker.postMessage({ type: 'restoreHistory' });
     } else {
       throw new Error('Web Workers are not supported in this environment');
     }
@@ -50,14 +49,16 @@ export class AppComponent {
     switch (event.data.type) {
       case 'initializeIndexedDB':
         this.dbInitialized = true;
+        this.worker.postMessage({ type: 'restoreHistory' });
         break;
       case 'restoreHistory':
         this.undoStack = event.data.data;
+        this.canvasComponent.drawImageDataToCanvas(this.undoStack[this.undoStack.length - 1].snapshot);
         break;
     }
   }
 
-  onUndoStackChange(event: StackEvent) {
+  onHistoryChange(event: StackEvent) {
     if (!this.dbInitialized) {
       return;
     }
@@ -66,8 +67,8 @@ export class AppComponent {
       this.worker.postMessage({
         type: 'pushToHistory',
         canvas: {
-          width: this.canvasComponent.canvas!.width,
-          height: this.canvasComponent.canvas!.height,
+          width: this.canvasComponent?.canvas?.width ?? window.innerWidth,
+          height: this.canvasComponent?.canvas?.height ?? window.innerHeight,
         },
         item: event.item,
       });
@@ -80,7 +81,6 @@ export class AppComponent {
     }
 
     if (event.type === 'clear') {
-      console.log('Clearing history until: ', event.item?.uuid);
       this.worker.postMessage({
         type: 'popFromHistoryUntilHistoryItem',
         item: event.item

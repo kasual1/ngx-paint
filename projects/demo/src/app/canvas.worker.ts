@@ -32,6 +32,7 @@ addEventListener('message', ({ data }) => {
       popFromHistoryUntilHistoryItem(data);
       break;
     case 'restoreHistory':
+      restoreHistory();
       break;
   }
 });
@@ -95,5 +96,19 @@ function popFromHistoryUntilHistoryItem(data: PopFromHistoryUntilHistoryItemData
 
   request.onerror = function () {
     console.error('Error popping items from history:', request.error);
+  };
+}
+
+function restoreHistory() {
+  const transaction = db!.transaction('history', 'readonly');
+  const store = transaction.objectStore('history');
+  const request = store.getAll();
+
+  request.onsuccess = function () {
+    postMessage({ type: 'restoreHistory', data: request.result });
+  };
+
+  request.onerror = function () {
+    console.error('Error restoring history:', request.error);
   };
 }

@@ -5,7 +5,9 @@ import {
   EventEmitter,
   HostListener,
   Input,
+  OnChanges,
   Output,
+  SimpleChanges,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
@@ -107,6 +109,9 @@ export class CanvasComponent implements AfterViewInit {
   @Output()
   redoStackChange = new EventEmitter<StackEvent>();
 
+  @Output()
+  historyChange = new EventEmitter<StackEvent>();
+
   @ViewChild('actionPanel')
   actionPanel!: ActionPanelComponent;
 
@@ -153,19 +158,6 @@ export class CanvasComponent implements AfterViewInit {
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
-    this.pushToUndoStack({
-      uuid: this.generateUuid(),
-      snapshot: this.canvas!.getContext('2d')!.getImageData(
-        0,
-        0,
-        this.canvas!.width,
-        this.canvas!.height
-      ),
-      brushOptions: {
-        color: this.brush.color,
-        size: this.brush.size,
-      },
-    });
   }
 
   private setupEventListeners() {
@@ -185,10 +177,10 @@ export class CanvasComponent implements AfterViewInit {
 
   onMouseDown(event: MouseEvent) {
     if (this.canDraw) {
-
-      if(this.redoStack.length > 0){
+      if (this.redoStack.length > 0) {
         this.clearRedoStack();
-        this.pushToUndoStack({
+
+        const historyItem = {
           uuid: this.generateUuid(),
           snapshot: this.canvas!.getContext('2d')!.getImageData(
             0,
@@ -200,7 +192,10 @@ export class CanvasComponent implements AfterViewInit {
             color: this.brush.color,
             size: this.brush.size,
           },
-        });
+        };
+
+        this.pushToUndoStack(historyItem);
+        this.historyChange.emit({ type: 'push', item: historyItem });
       }
       this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
@@ -230,7 +225,7 @@ export class CanvasComponent implements AfterViewInit {
       this.brush.up();
       this.mouseDown = false;
 
-      this.pushToUndoStack({
+      const historyItem = {
         uuid: this.generateUuid(),
         snapshot: this.canvas!.getContext('2d')!.getImageData(
           0,
@@ -242,7 +237,9 @@ export class CanvasComponent implements AfterViewInit {
           color: this.brush.color,
           size: this.brush.size,
         },
-      });
+      };
+      this.pushToUndoStack(historyItem);
+      this.historyChange.emit({ type: 'push', item: historyItem });
     }
   }
 
@@ -264,8 +261,7 @@ export class CanvasComponent implements AfterViewInit {
 
   onUndo() {
     if (this.undoStack.length > 0) {
-
-      if(this.redoStack.length === 0){
+      if (this.redoStack.length === 0) {
         const lastItem = this.popFromUndoStack();
         this.pushToRedoStack(lastItem!);
       }
@@ -273,16 +269,14 @@ export class CanvasComponent implements AfterViewInit {
       const lastItem = this.popFromUndoStack();
       this.pushToRedoStack(lastItem!);
 
-      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.putImageData(lastItem!.snapshot, 0, 0);
+      this.drawImageDataToCanvas(lastItem!.snapshot);
       this.brush = new Brush('Brush', lastItem!.brushOptions);
     }
   }
 
   onRedo() {
     if (this.redoStack.length > 0) {
-
-      if(this.undoStack.length === 0){
+      if (this.undoStack.length === 0) {
         const lastItem = this.popFromRedoStack();
         this.pushToUndoStack(lastItem!);
       }
@@ -290,9 +284,15 @@ export class CanvasComponent implements AfterViewInit {
       const lastItem = this.popFromRedoStack();
       this.pushToUndoStack(lastItem!);
 
-      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.putImageData(lastItem!.snapshot, 0, 0);
+      this.drawImageDataToCanvas(lastItem!.snapshot);
       this.brush = new Brush('Brush', lastItem!.brushOptions);
+    }
+  }
+
+  drawImageDataToCanvas(imageData: ImageData) {
+    if (this.context && this.canvas) {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.context.putImageData(imageData, 0, 0);
     }
   }
 
@@ -306,13 +306,13 @@ export class CanvasComponent implements AfterViewInit {
     this.redoStackChange.emit({ type: 'push', item: item });
   }
 
-  popFromUndoStack(): HistoryItem | undefined{
+  popFromUndoStack(): HistoryItem | undefined {
     const item = this.undoStack.pop();
     this.undoStackChange.emit({ type: 'pop', item: item });
     return item;
   }
 
-  popFromRedoStack(): HistoryItem | undefined{
+  popFromRedoStack(): HistoryItem | undefined {
     const item = this.redoStack.pop();
     this.redoStackChange.emit({ type: 'pop', item: item });
     return item;
@@ -330,13 +330,15 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   private generateUuid(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
   }
-
 }
 
 export interface HistoryItem {
@@ -349,5 +351,3 @@ export interface StackEvent {
   type: 'push' | 'pop' | 'clear';
   item: HistoryItem | undefined;
 }
-
-
