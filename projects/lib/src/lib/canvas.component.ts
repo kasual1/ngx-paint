@@ -4,6 +4,7 @@ import {
   ElementRef,
   EventEmitter,
   HostListener,
+  Input,
   Output,
   ViewChild,
   ViewEncapsulation,
@@ -94,11 +95,17 @@ export class CanvasComponent implements AfterViewInit {
     this.resizeCanvas();
   }
 
-  @Output()
-  undoStackChange = new EventEmitter<HistoryItem[]>();
+  @Input()
+  undoStack: HistoryItem[] = [];
+
+  @Input()
+  redoStack: HistoryItem[] = [];
 
   @Output()
-  redoStackChange = new EventEmitter<HistoryItem[]>();
+  undoStackChange = new EventEmitter<StackOperation>();
+
+  @Output()
+  redoStackChange = new EventEmitter<StackOperation>();
 
   @ViewChild('actionPanel')
   actionPanel!: ActionPanelComponent;
@@ -118,10 +125,6 @@ export class CanvasComponent implements AfterViewInit {
   });
 
   mouseDown = false;
-
-  undoStack: HistoryItem[] = [];
-
-  redoStack: HistoryItem[] = [];
 
   get cursorCircleStyle() {
     return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
@@ -145,14 +148,18 @@ export class CanvasComponent implements AfterViewInit {
     this.setupCanvas();
     this.setupEventListeners();
     this.resizeCanvas();
-    this.loadUndoStack();
   }
 
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
     this.pushToUndoStack({
-      canvas: CanvasHelper.copyCanvas(this.canvas),
+      snapshot: this.canvas!.getContext('2d')!.getImageData(
+        0,
+        0,
+        this.canvas!.width,
+        this.canvas!.height
+      ),
       brushOptions: {
         color: this.brush.color,
         size: this.brush.size,
@@ -181,7 +188,12 @@ export class CanvasComponent implements AfterViewInit {
       if(this.redoStack.length > 0){
         this.clearRedoStack();
         this.pushToUndoStack({
-          canvas: CanvasHelper.copyCanvas(this.canvas!),
+          snapshot: this.canvas!.getContext('2d')!.getImageData(
+            0,
+            0,
+            this.canvas!.width,
+            this.canvas!.height
+          ),
           brushOptions: {
             color: this.brush.color,
             size: this.brush.size,
@@ -217,7 +229,12 @@ export class CanvasComponent implements AfterViewInit {
       this.mouseDown = false;
 
       this.pushToUndoStack({
-        canvas: CanvasHelper.copyCanvas(this.canvas),
+        snapshot: this.canvas!.getContext('2d')!.getImageData(
+          0,
+          0,
+          this.canvas!.width,
+          this.canvas!.height
+        ),
         brushOptions: {
           color: this.brush.color,
           size: this.brush.size,
@@ -254,7 +271,7 @@ export class CanvasComponent implements AfterViewInit {
       this.pushToRedoStack(lastItem!);
 
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.drawImage(lastItem!.canvas, 0, 0);
+      this.context!.putImageData(lastItem!.snapshot, 0, 0);
       this.brush = new Brush('Brush', lastItem!.brushOptions);
     }
   }
@@ -271,147 +288,52 @@ export class CanvasComponent implements AfterViewInit {
       this.pushToUndoStack(lastItem!);
 
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-      this.context!.drawImage(lastItem!.canvas, 0, 0);
+      this.context!.putImageData(lastItem!.snapshot, 0, 0);
       this.brush = new Brush('Brush', lastItem!.brushOptions);
     }
   }
 
   pushToUndoStack(item: HistoryItem) {
     this.undoStack.push(item);
-    this.undoStackChange.emit(this.undoStack);
+    this.undoStackChange.emit({ type: 'push', data: this.undoStack });
   }
 
   pushToRedoStack(item: HistoryItem) {
     this.redoStack.push(item);
-    this.redoStackChange.emit(this.redoStack);
+    this.redoStackChange.emit({ type: 'push', data: this.redoStack});
   }
 
   popFromUndoStack(): HistoryItem | undefined{
     const item = this.undoStack.pop();
-    this.undoStackChange.emit(this.undoStack);
+    this.undoStackChange.emit({ type: 'pop', data: this.undoStack});
     return item;
   }
 
   popFromRedoStack(): HistoryItem | undefined{
     const item = this.redoStack.pop();
-    this.redoStackChange.emit(this.redoStack);
+    this.redoStackChange.emit({ type: 'pop', data: this.redoStack});
     return item;
   }
 
   clearUndoStack() {
     this.undoStack = [];
-    this.undoStackChange.emit(this.undoStack);
+    this.undoStackChange.emit({ type: 'clear', data: this.undoStack });
   }
 
   clearRedoStack() {
     this.redoStack = [];
-    this.redoStackChange.emit(this.redoStack);
+    this.redoStackChange.emit({ type: 'clear', data: this.redoStack});
   }
-
-  getArrayByteSize(array: PixelDiff[]): number {
-    const sizeInBytes = array.length;
-    const sizeInMegabytes = (sizeInBytes * 6) / 8 / 1024 / 1024;
-    return sizeInMegabytes;
-  }
-
-  calculateCanvasDiff(
-    oldCanvas: HTMLCanvasElement,
-    newCanvas: HTMLCanvasElement
-  ): PixelDiff[] {
-    const oldContext = oldCanvas.getContext('2d')!;
-    const newContext = newCanvas.getContext('2d')!;
-
-    const oldImageData = oldContext.getImageData(
-      0,
-      0,
-      oldCanvas.width,
-      oldCanvas.height
-    );
-    const newImageData = newContext.getImageData(
-      0,
-      0,
-      newCanvas.width,
-      newCanvas.height
-    );
-
-    const pixelDiffs: PixelDiff[] = [];
-
-    for (let y = 0; y < oldCanvas.height; y++) {
-      for (let x = 0; x < oldCanvas.width; x++) {
-        const index = (y * oldCanvas.width + x) * 4;
-
-        const oldPixel = oldImageData.data.slice(index, index + 4);
-        const newPixel = newImageData.data.slice(index, index + 4);
-
-        if (oldPixel.join(',') !== newPixel.join(',')) {
-          const [r, g, b, a] = newPixel;
-          const alpha = a / 255; // Normalize alpha to 0-1 range
-          pixelDiffs.push({
-            x,
-            y,
-            color: `rgba(${r},${g},${b},${alpha})`,
-          });
-        }
-      }
-    }
-
-    return pixelDiffs;
-  }
-
-  applyCanvasDiff(context: CanvasRenderingContext2D, diffs: PixelDiff[]) {
-    for (const dif of diffs) {
-      context.fillStyle = dif.color;
-      context.fillRect(dif.x, dif.y, 1, 1);
-    }
-  }
-
-  saveUndoStack() {
-    const simplifiedUndoStack = this.undoStack.map(item => ({
-      brushOptions: item.brushOptions
-    }));
-
-    localStorage.setItem('undoStack', JSON.stringify(simplifiedUndoStack));
-  }
-
-  loadUndoStack() {
-    const savedUndoStack = localStorage.getItem('undoStack');
-
-    if (savedUndoStack) {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      canvas.width = this.canvas!.width;
-      canvas.height = this.canvas!.height;
-
-      this.undoStack = JSON.parse(savedUndoStack).map((item: any) => {
-        this.applyCanvasDiff(context!, item.diffs);
-
-        return {
-          canvas: CanvasHelper.copyCanvas(canvas),
-          diffs: item.diffs,
-          brushOptions: item.brushOptions
-        };
-      });
-
-      // Restore the canvas state to the last item in the undo stack
-      if (this.undoStack.length > 0) {
-        const lastItem = this.undoStack[this.undoStack.length - 1];
-        this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-        this.context!.drawImage(lastItem.canvas, 0, 0);
-        this.brush = new Brush('Brush', lastItem.brushOptions);
-      }
-    }
-  }
-
 }
 
 export interface HistoryItem {
-  canvas: HTMLCanvasElement;
+  snapshot: ImageData;
   brushOptions: BrushOptions;
 }
 
-export interface PixelDiff {
-  x: number;
-  y: number;
-  color: string;
+export interface StackOperation {
+  type: 'push' | 'pop' | 'clear';
+  data: HistoryItem[];
 }
+
+
