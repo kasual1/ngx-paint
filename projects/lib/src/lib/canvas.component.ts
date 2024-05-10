@@ -5,7 +5,9 @@ import {
   EventEmitter,
   HostListener,
   Input,
+  OnChanges,
   Output,
+  SimpleChanges,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
@@ -14,6 +16,7 @@ import { CommonModule } from '@angular/common';
 import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
 import { CursorService } from './cursor.service';
+import { last } from 'rxjs';
 
 @Component({
   selector: 'ngx-paint',
@@ -47,7 +50,6 @@ import { CursorService } from './cursor.service';
 
     <div class="debug-panel">
       <h1>Debug panel</h1>
-      <pre>History Index: {{ historyIndex }}</pre>
       <pre>Undo Stack: {{ undoStack.length }}</pre>
       <pre>Redo Stack: {{ redoStack.length }}</pre>
       <pre>Window Width: {{ windowWidth }}</pre>
@@ -130,7 +132,7 @@ export class CanvasComponent implements AfterViewInit {
 
   mouseDown = false;
 
-  historyIndex = 0;
+  lastUndoRedoAction: 'undo' | 'redo' | null = null;
 
   get cursorCircleStyle() {
     return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
@@ -197,6 +199,11 @@ export class CanvasComponent implements AfterViewInit {
 
         this.pushToUndoStack(historyItem);
       }
+
+      if(this.undoStack.length === 0 && this.redoStack.length === 0){
+        this.addBlankCanvasToUndoStack();
+      }
+
       this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
       const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
       const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
@@ -240,7 +247,6 @@ export class CanvasComponent implements AfterViewInit {
       };
       this.pushToUndoStack(historyItem);
       this.historyChange.emit({ type: 'push', item: historyItem });
-      this.historyIndex++;
     }
   }
 
@@ -261,46 +267,29 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   onUndo() {
-    if (this.historyIndex > 0) {
-      if (this.undoStack.length === 0) {
-        const historyItem = {
-          uuid: this.generateUuid(),
-          snapshot: this.canvas!.getContext('2d')!.getImageData(
-            0,
-            0,
-            this.canvas!.width,
-            this.canvas!.height
-          ),
-          brushOptions: {
-            color: this.brush.color,
-            size: this.brush.size,
-          },
-        };
-        this.redoStack.push(historyItem);
-        this.clearCanvas();
-      }
+    if (this.undoStack.length > 0) {
 
-      if (this.undoStack.length > 0) {
-        if (this.redoStack.length === 0) {
-          const lastItem = this.popFromUndoStack();
-          this.pushToRedoStack(lastItem!);
-        }
-
+      if (this.lastUndoRedoAction === 'redo' || this.lastUndoRedoAction === null) {
         const lastItem = this.popFromUndoStack();
         this.pushToRedoStack(lastItem!);
-
-        this.drawImageDataToCanvas(lastItem!.snapshot);
-        this.brush = new Brush('Brush', lastItem!.brushOptions);
       }
 
-      this.historyIndex--;
+      const lastItem = this.popFromUndoStack();
+      this.pushToRedoStack(lastItem!);
+
+      this.drawImageDataToCanvas(lastItem!.snapshot);
+      this.brush = new Brush('Brush', lastItem!.brushOptions);
+
+      this.lastUndoRedoAction = 'undo';
     }
   }
 
   onRedo() {
     if (this.redoStack.length > 0) {
-      if (this.undoStack.length === 0) {
-        this.popFromRedoStack();
+
+      if (this.lastUndoRedoAction === 'undo' || this.lastUndoRedoAction === null) {
+        const lastItem = this.popFromRedoStack();
+        this.pushToUndoStack(lastItem!);
       }
 
       const lastItem = this.popFromRedoStack();
@@ -309,7 +298,7 @@ export class CanvasComponent implements AfterViewInit {
       this.drawImageDataToCanvas(lastItem!.snapshot);
       this.brush = new Brush('Brush', lastItem!.brushOptions);
 
-      this.historyIndex++;
+      this.lastUndoRedoAction = 'redo';
     }
   }
 
@@ -318,6 +307,24 @@ export class CanvasComponent implements AfterViewInit {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.context.putImageData(imageData, 0, 0);
     }
+  }
+
+  addBlankCanvasToUndoStack() {
+    const historyItem = {
+      uuid: this.generateUuid(),
+      snapshot: this.canvas!.getContext('2d')!.getImageData(
+        0,
+        0,
+        this.canvas!.width,
+        this.canvas!.height
+      ),
+      brushOptions: {
+        color: this.brush.color,
+        size: this.brush.size,
+      },
+    };
+    this.pushToUndoStack(historyItem);
+    this.historyChange.emit({ type: 'push', item: historyItem });
   }
 
   clearCanvas() {
@@ -357,6 +364,7 @@ export class CanvasComponent implements AfterViewInit {
     const lastItem = this.redoStack[this.redoStack.length - 1];
     this.redoStack = [];
     this.redoStackChange.emit({ type: 'clear', item: lastItem });
+    this.lastUndoRedoAction = null;
   }
 
   private generateUuid(): string {

@@ -112,3 +112,20 @@ function restoreHistory() {
     console.error('Error restoring history:', request.error);
   };
 }
+
+function computePixelDiffs(image1: ImageData, image2: ImageData): PixelDiff[]{
+  const diffs: PixelDiff[] = [];
+  for (let i = 0; i < image1.data.length; i += 4) {
+    if (image1.data[i] !== image2.data[i] ||
+        image1.data[i + 1] !== image2.data[i + 1] ||
+        image1.data[i + 2] !== image2.data[i + 2] ||
+        image1.data[i + 3] !== image2.data[i + 3]) {
+      diffs.push({
+        x: (i / 4) % image1.width,
+        y: Math.floor((i / 4) / image1.width),
+        color: `rgba(${image1.data[i]}, ${image1.data[i + 1]}, ${image1.data[i + 2]}, ${image1.data[i + 3]})`
+      });
+    }
+  }
+  return diffs;
+}

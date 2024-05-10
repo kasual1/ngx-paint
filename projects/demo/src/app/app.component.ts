@@ -1,6 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {
+  Brush,
   BrushPickerPanelComponent,
   CanvasComponent,
   ColorPickerComponent,
@@ -52,15 +53,24 @@ export class AppComponent {
   handleMessage(event: MessageEvent) {
     switch (event.data.type) {
       case 'initializeIndexedDB':
-        this.dbInitialized = true;
-        this.worker.postMessage({ type: 'restoreHistory' });
+        this.handleInitializeIndexedDB();
         break;
       case 'restoreHistory':
-        this.undoStack = event.data.data;
-        this.canvasComponent.drawImageDataToCanvas(this.undoStack[this.undoStack.length - 1].snapshot);
-        this.canvasComponent.historyIndex = this.undoStack.length;
+        this.handleRestoreHistory(event);
         break;
     }
+  }
+
+  handleInitializeIndexedDB() {
+    this.dbInitialized = true;
+    this.worker.postMessage({ type: 'restoreHistory' });
+  }
+
+  handleRestoreHistory(event: MessageEvent) {
+    this.undoStack = event.data.data;
+    const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
+    this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
+    this.canvasComponent.brush = new Brush('Brush', mostRecentHistoryItem.brushOptions);
   }
 
   onHistoryChange(event: StackEvent) {
