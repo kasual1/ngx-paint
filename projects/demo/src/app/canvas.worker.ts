@@ -134,7 +134,6 @@ function restoreHistory(data: RestoreHistoryData) {
     const compressedHistoryItems = request.result as CompressedHistoryItem[];
     const historyItems: HistoryItem[] = [];
 
-    let previousImage: ImageData | undefined = undefined;
     for (let i = 0; i < compressedHistoryItems.length; i++) {
       const compressedItem = compressedHistoryItems[i];
 
@@ -168,24 +167,28 @@ function computePixelDiffs(
     return [];
   }
 
-  const diffs: PixelDiff[] = [];
-  for (let i = 0; i < image1.data.length; i += 4) {
-    if (
-      image1.data[i] !== image2.data[i] ||
-      image1.data[i + 1] !== image2.data[i + 1] ||
-      image1.data[i + 2] !== image2.data[i + 2] ||
-      image1.data[i + 3] !== image2.data[i + 3]
-    ) {
-      diffs.push({
-        x: (i / 4) % image1.width,
-        y: Math.floor(i / 4 / image1.width),
-        color: `rgba(${image1.data[i]}, ${image1.data[i + 1]}, ${
-          image1.data[i + 2]
-        }, ${image1.data[i + 3]})`,
-      });
+  const pixelDiffs: PixelDiff[] = [];
+
+  for (let y = 0; y < image1!.height; y++) {
+    for (let x = 0; x < image1!.width; x++) {
+      const index = (y * image1!.width + x) * 4;
+
+      const oldPixel = image1!.data.slice(index, index + 4);
+      const newPixel = image2!.data.slice(index, index + 4);
+
+      if (oldPixel.join(',') !== newPixel.join(',')) {
+        const [r, g, b, a] = newPixel;
+        const alpha = a / 255; // Normalize alpha to 0-1 range
+        pixelDiffs.push({
+          x,
+          y,
+          color: `rgba(${r},${g},${b},${alpha})`,
+        });
+      }
     }
   }
-  return diffs;
+
+  return pixelDiffs;
 }
 
 function convertPixelDiffsToImageData(
