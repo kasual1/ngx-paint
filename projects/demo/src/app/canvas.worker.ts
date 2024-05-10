@@ -1,11 +1,17 @@
 /// <reference lib="webworker" />
 
-import { HistoryItem } from '../../../lib/src/public-api';
+import { BrushOptions, HistoryItem } from 'lib';
 
 interface PixelDiff {
   x: number;
   y: number;
   color: string;
+}
+
+interface CompressedHistoryItem {
+  uuid: string;
+  brushOptions: BrushOptions;
+  pixelDiff: PixelDiff[];
 }
 
 interface PushToHistoryData {
@@ -19,6 +25,8 @@ interface PopFromHistoryUntilHistoryItemData {
 }
 
 let db: IDBDatabase | null = null;
+
+let previousImage: ImageData | undefined = undefined;
 
 addEventListener('message', ({ data }) => {
   switch (data.type) {
@@ -67,15 +75,27 @@ function initializeIndexedDB() {
 function pushToHistory(data: PushToHistoryData) {
   const transaction = db!.transaction('history', 'readwrite');
   const store = transaction.objectStore('history');
-  const request = store.add(data.item);
 
-  request.onsuccess = function () {
-    console.log('Successfully added item to history:', data.item);
+  let pixelDiff = computePixelDiffs(previousImage, data.item.snapshot);
+  previousImage = data.item.snapshot;
+
+
+  const compressedItem: CompressedHistoryItem = {
+     uuid: data.item.uuid,
+     brushOptions: data.item.brushOptions,
+     pixelDiff: pixelDiff
+   };
+
+  const addItemRequest = store.add(compressedItem);
+
+  addItemRequest.onsuccess = function () {
+    console.log('Successfully added item to history:', compressedItem);
   };
 
-  request.onerror = function () {
-    console.error('Error adding item to history:', request.error);
+  addItemRequest.onerror = function () {
+    console.error('Error adding item to history:', addItemRequest.error);
   };
+
 }
 
 function popFromHistoryUntilHistoryItem(data: PopFromHistoryUntilHistoryItemData) {
@@ -113,7 +133,11 @@ function restoreHistory() {
   };
 }
 
-function computePixelDiffs(image1: ImageData, image2: ImageData): PixelDiff[]{
+function computePixelDiffs(image1?: ImageData, image2?: ImageData): PixelDiff[]{
+  if(!image1 || !image2){
+    return [];
+  }
+
   const diffs: PixelDiff[] = [];
   for (let i = 0; i < image1.data.length; i += 4) {
     if (image1.data[i] !== image2.data[i] ||

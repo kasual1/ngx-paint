@@ -63,7 +63,7 @@ export class AppComponent {
 
   handleInitializeIndexedDB() {
     this.dbInitialized = true;
-    this.worker.postMessage({ type: 'restoreHistory' });
+    // this.worker.postMessage({ type: 'restoreHistory' });
   }
 
   handleRestoreHistory(event: MessageEvent) {
