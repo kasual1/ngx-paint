@@ -24,6 +24,12 @@ interface PopFromHistoryUntilHistoryItemData {
   item: HistoryItem;
 }
 
+interface RestoreHistoryData {
+  type: 'restoreHistory';
+  width: number;
+  height: number;
+}
+
 let db: IDBDatabase | null = null;
 
 let previousImage: ImageData | undefined = undefined;
@@ -40,7 +46,7 @@ addEventListener('message', ({ data }) => {
       popFromHistoryUntilHistoryItem(data);
       break;
     case 'restoreHistory':
-      restoreHistory();
+      restoreHistory(data);
       break;
   }
 });
@@ -79,12 +85,11 @@ function pushToHistory(data: PushToHistoryData) {
   let pixelDiff = computePixelDiffs(previousImage, data.item.snapshot);
   previousImage = data.item.snapshot;
 
-
   const compressedItem: CompressedHistoryItem = {
-     uuid: data.item.uuid,
-     brushOptions: data.item.brushOptions,
-     pixelDiff: pixelDiff
-   };
+    uuid: data.item.uuid,
+    brushOptions: data.item.brushOptions,
+    pixelDiff: pixelDiff,
+  };
 
   const addItemRequest = store.add(compressedItem);
 
@@ -95,10 +100,11 @@ function pushToHistory(data: PushToHistoryData) {
   addItemRequest.onerror = function () {
     console.error('Error adding item to history:', addItemRequest.error);
   };
-
 }
 
-function popFromHistoryUntilHistoryItem(data: PopFromHistoryUntilHistoryItemData) {
+function popFromHistoryUntilHistoryItem(
+  data: PopFromHistoryUntilHistoryItemData
+) {
   const transaction = db!.transaction('history', 'readwrite');
   const store = transaction.objectStore('history');
   const request = store.openCursor(null, 'prev');
@@ -119,13 +125,34 @@ function popFromHistoryUntilHistoryItem(data: PopFromHistoryUntilHistoryItemData
   };
 }
 
-function restoreHistory() {
+function restoreHistory(data: RestoreHistoryData) {
   const transaction = db!.transaction('history', 'readonly');
   const store = transaction.objectStore('history');
   const request = store.getAll();
 
   request.onsuccess = function () {
-    postMessage({ type: 'restoreHistory', data: request.result });
+    const compressedHistoryItems = request.result as CompressedHistoryItem[];
+    const historyItems: HistoryItem[] = [];
+
+    let previousImage: ImageData | undefined = undefined;
+    for (let i = 0; i < compressedHistoryItems.length; i++) {
+      const compressedItem = compressedHistoryItems[i];
+
+      previousImage = convertPixelDiffsToImageData(
+        compressedItem.pixelDiff,
+        previousImage,
+        data.width,
+        data.height
+      );
+
+      const item: HistoryItem = {
+        uuid: compressedItem.uuid,
+        brushOptions: compressedItem.brushOptions,
+        snapshot: previousImage
+      };
+      historyItems.push(item);
+    }
+    postMessage({ type: 'restoreHistory', historyItems });
   };
 
   request.onerror = function () {
@@ -133,23 +160,54 @@ function restoreHistory() {
   };
 }
 
-function computePixelDiffs(image1?: ImageData, image2?: ImageData): PixelDiff[]{
-  if(!image1 || !image2){
+function computePixelDiffs(
+  image1?: ImageData,
+  image2?: ImageData
+): PixelDiff[] {
+  if (!image1 || !image2) {
     return [];
   }
 
   const diffs: PixelDiff[] = [];
   for (let i = 0; i < image1.data.length; i += 4) {
-    if (image1.data[i] !== image2.data[i] ||
-        image1.data[i + 1] !== image2.data[i + 1] ||
-        image1.data[i + 2] !== image2.data[i + 2] ||
-        image1.data[i + 3] !== image2.data[i + 3]) {
+    if (
+      image1.data[i] !== image2.data[i] ||
+      image1.data[i + 1] !== image2.data[i + 1] ||
+      image1.data[i + 2] !== image2.data[i + 2] ||
+      image1.data[i + 3] !== image2.data[i + 3]
+    ) {
       diffs.push({
         x: (i / 4) % image1.width,
-        y: Math.floor((i / 4) / image1.width),
-        color: `rgba(${image1.data[i]}, ${image1.data[i + 1]}, ${image1.data[i + 2]}, ${image1.data[i + 3]})`
+        y: Math.floor(i / 4 / image1.width),
+        color: `rgba(${image1.data[i]}, ${image1.data[i + 1]}, ${
+          image1.data[i + 2]
+        }, ${image1.data[i + 3]})`,
       });
     }
   }
   return diffs;
+}
+
+function convertPixelDiffsToImageData(
+  diffs: PixelDiff[],
+  previousImage: ImageData | undefined,
+  width: number,
+  height: number
+): ImageData {
+  const offscreenCanvas = new OffscreenCanvas(width, height);
+  const ctx = offscreenCanvas.getContext('2d')!;
+
+  if (previousImage) {
+    ctx.putImageData(previousImage, 0, 0);
+  }
+
+  for (let i = 0; i < diffs.length; i++) {
+    const diff = diffs[i];
+    ctx.fillStyle = diff.color;
+    ctx.fillRect(diff.x, diff.y, 1, 1);
+  }
+
+  const newImage = ctx.getImageData(0, 0, width, height);
+
+  return newImage;
 }

@@ -63,11 +63,11 @@ export class AppComponent {
 
   handleInitializeIndexedDB() {
     this.dbInitialized = true;
-    // this.worker.postMessage({ type: 'restoreHistory' });
+    this.worker.postMessage({ type: 'restoreHistory', width: window.innerWidth, height: window.innerHeight});
   }
 
   handleRestoreHistory(event: MessageEvent) {
-    this.undoStack = event.data.data;
+    this.undoStack = event.data.historyItems;
     const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
     this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
     this.canvasComponent.brush = new Brush('Brush', mostRecentHistoryItem.brushOptions);
