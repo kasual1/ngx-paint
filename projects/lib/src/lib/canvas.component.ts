@@ -102,10 +102,10 @@ export class CanvasComponent implements AfterViewInit {
   redoStack: HistoryItem[] = [];
 
   @Output()
-  undoStackChange = new EventEmitter<StackOperation>();
+  undoStackChange = new EventEmitter<StackEvent>();
 
   @Output()
-  redoStackChange = new EventEmitter<StackOperation>();
+  redoStackChange = new EventEmitter<StackEvent>();
 
   @ViewChild('actionPanel')
   actionPanel!: ActionPanelComponent;
@@ -154,6 +154,7 @@ export class CanvasComponent implements AfterViewInit {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
     this.pushToUndoStack({
+      uuid: this.generateUuid(),
       snapshot: this.canvas!.getContext('2d')!.getImageData(
         0,
         0,
@@ -188,6 +189,7 @@ export class CanvasComponent implements AfterViewInit {
       if(this.redoStack.length > 0){
         this.clearRedoStack();
         this.pushToUndoStack({
+          uuid: this.generateUuid(),
           snapshot: this.canvas!.getContext('2d')!.getImageData(
             0,
             0,
@@ -229,6 +231,7 @@ export class CanvasComponent implements AfterViewInit {
       this.mouseDown = false;
 
       this.pushToUndoStack({
+        uuid: this.generateUuid(),
         snapshot: this.canvas!.getContext('2d')!.getImageData(
           0,
           0,
@@ -295,45 +298,56 @@ export class CanvasComponent implements AfterViewInit {
 
   pushToUndoStack(item: HistoryItem) {
     this.undoStack.push(item);
-    this.undoStackChange.emit({ type: 'push', data: this.undoStack });
+    this.undoStackChange.emit({ type: 'push', item: item });
   }
 
   pushToRedoStack(item: HistoryItem) {
     this.redoStack.push(item);
-    this.redoStackChange.emit({ type: 'push', data: this.redoStack});
+    this.redoStackChange.emit({ type: 'push', item: item });
   }
 
   popFromUndoStack(): HistoryItem | undefined{
     const item = this.undoStack.pop();
-    this.undoStackChange.emit({ type: 'pop', data: this.undoStack});
+    this.undoStackChange.emit({ type: 'pop', item: item });
     return item;
   }
 
   popFromRedoStack(): HistoryItem | undefined{
     const item = this.redoStack.pop();
-    this.redoStackChange.emit({ type: 'pop', data: this.redoStack});
+    this.redoStackChange.emit({ type: 'pop', item: item });
     return item;
   }
 
   clearUndoStack() {
     this.undoStack = [];
-    this.undoStackChange.emit({ type: 'clear', data: this.undoStack });
+    this.undoStackChange.emit({ type: 'clear', item: undefined });
   }
 
   clearRedoStack() {
+    const lastItem = this.redoStack[this.redoStack.length - 1];
     this.redoStack = [];
-    this.redoStackChange.emit({ type: 'clear', data: this.redoStack});
+    this.redoStackChange.emit({ type: 'clear', item: lastItem });
   }
+
+  private generateUuid(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
 }
 
 export interface HistoryItem {
+  uuid: string;
   snapshot: ImageData;
   brushOptions: BrushOptions;
 }
 
-export interface StackOperation {
+export interface StackEvent {
   type: 'push' | 'pop' | 'clear';
-  data: HistoryItem[];
+  item: HistoryItem | undefined;
 }
 
 

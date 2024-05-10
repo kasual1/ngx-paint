@@ -46,7 +46,7 @@ import { Brush } from '../brushes/brush.class';
     .example-menu {
       display: inline-flex;
       flex-direction: column;
-      width: 100%
+      width: 100%;
       background-color: rgba(255, 255, 255);
       padding: 6px 0;
       border-bottom-left-radius: 4px;

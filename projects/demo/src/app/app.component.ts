@@ -6,9 +6,9 @@ import {
   ColorPickerComponent,
   ColorPickerPanelComponent,
   HistoryItem,
-  StackEvent,
 } from 'lib';
 import { MatButtonModule } from '@angular/material/button';
+import { StackEvent } from '../../../lib/src/public-api';
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -31,13 +31,16 @@ export class AppComponent {
 
   undoStack: HistoryItem[] = [];
 
+  dbInitialized = false;
+
   constructor() {
     if (typeof Worker !== 'undefined') {
       this.worker = new Worker(new URL('./canvas.worker', import.meta.url), {
         type: 'module',
       });
       this.worker.onmessage = this.handleMessage.bind(this);
-      this.worker.postMessage({ type: 'restoreHistory' });
+      this.worker.postMessage({ type: 'initializeIndexedDB' });
+      // this.worker.postMessage({ type: 'restoreHistory' });
     } else {
       throw new Error('Web Workers are not supported in this environment');
     }
@@ -45,6 +48,9 @@ export class AppComponent {
 
   handleMessage(event: MessageEvent) {
     switch (event.data.type) {
+      case 'initializeIndexedDB':
+        this.dbInitialized = true;
+        break;
       case 'restoreHistory':
         this.undoStack = event.data.data;
         break;
@@ -52,25 +58,33 @@ export class AppComponent {
   }
 
   onUndoStackChange(event: StackEvent) {
-    if (event.data.length > 1) {
-      const lastItem = event.data[event.data.length - 1];
-      const secondLastItem = event.data[event.data.length - 2];
+    if (!this.dbInitialized) {
+      return;
+    }
 
-      if (event.type === 'push') {
-        this.worker.postMessage({
-          type: 'pushToHistory',
-          canvas: {
-            width: this.canvasComponent.canvas!.width,
-            height: this.canvasComponent.canvas!.height,
-          },
-          lastImageData: lastItem.snapshot,
-          secondLastImageData: secondLastItem.snapshot,
-        });
-      }
+    if (event.type === 'push') {
+      this.worker.postMessage({
+        type: 'pushToHistory',
+        canvas: {
+          width: this.canvasComponent.canvas!.width,
+          height: this.canvasComponent.canvas!.height,
+        },
+        item: event.item,
+      });
+    }
+  }
 
-      if(event.type === 'pop') {
-        this.worker.postMessage({ type: 'popFromHistory' });
-      }
+  onRedoStackChange(event: StackEvent) {
+    if (!this.dbInitialized) {
+      return;
+    }
+
+    if (event.type === 'clear') {
+      console.log('Clearing history until: ', event.item?.uuid);
+      this.worker.postMessage({
+        type: 'popFromHistoryUntilHistoryItem',
+        item: event.item
+      });
     }
   }
 }
