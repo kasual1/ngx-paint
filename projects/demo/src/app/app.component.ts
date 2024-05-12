@@ -9,7 +9,10 @@ import {
   HistoryItem,
 } from 'lib';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSelectChange, MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
 import { StackEvent } from '../../../lib/src/public-api';
+import { MatFormFieldModule } from '@angular/material/form-field';
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -20,6 +23,9 @@ import { StackEvent } from '../../../lib/src/public-api';
     ColorPickerPanelComponent,
     BrushPickerPanelComponent,
     MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -33,6 +39,55 @@ export class AppComponent {
   undoStack: HistoryItem[] = [];
 
   dbInitialized = false;
+
+  painting: {
+    title: string;
+    canvas: {
+      resolution: string;
+    };
+  } = {
+    title: 'Untitled',
+    canvas: {
+      resolution: '1920x1080',
+    },
+  };
+
+  resolutionOptions = [
+    {
+      label: '1920x1080',
+      value: '1920x1080',
+    },
+    {
+      label: '1280x720',
+      value: '1280x720',
+    },
+    {
+      label: '800x600',
+      value: '800x600',
+    },
+    {
+      label: 'Auto',
+      value: 'auto',
+    },
+  ];
+
+  get canvasWidth() {
+    switch (this.painting.canvas.resolution) {
+      case 'auto':
+        return window.innerWidth;
+      default:
+        return parseInt(this.painting.canvas.resolution.split('x')[0]);
+    }
+  }
+
+  get canvasHeight() {
+    switch (this.painting.canvas.resolution) {
+      case 'auto':
+        return window.innerHeight;
+      default:
+        return parseInt(this.painting.canvas.resolution.split('x')[1]);
+    }
+  }
 
   constructor() {
     this.initializeWorker();
@@ -69,11 +124,11 @@ export class AppComponent {
 
   handleInitializeIndexedDB() {
     this.dbInitialized = true;
-    this.worker.postMessage({
-      type: 'restoreHistory',
-      width: window.innerWidth,
-      height: window.innerHeight,
-    });
+    // this.worker.postMessage({
+    //   type: 'restoreHistory',
+    //   width: window.innerWidth,
+    //   height: window.innerHeight,
+    // });
   }
 
   handleRestoreHistory(event: MessageEvent) {
@@ -123,5 +178,9 @@ export class AppComponent {
         item: event.item,
       });
     }
+  }
+
+  onResolutionChange(event: MatSelectChange) {
+    this.painting.canvas.resolution = event.value;
   }
 }

@@ -5,7 +5,9 @@ import {
   EventEmitter,
   HostListener,
   Input,
+  OnChanges,
   Output,
+  SimpleChanges,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
@@ -100,7 +102,7 @@ import { CursorService } from './cursor.service';
     }
   `,
 })
-export class CanvasComponent implements AfterViewInit {
+export class CanvasComponent implements AfterViewInit, OnChanges {
   @HostListener('window:resize', ['$event'])
   onWindowResize(event: Event) {
     this.resizeCanvas();
@@ -165,6 +167,12 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   constructor(public cursorService: CursorService) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['width'] || changes['height']) {
+      this.resizeCanvas();
+    }
+  }
 
   ngAfterViewInit() {
     this.setupCanvas();

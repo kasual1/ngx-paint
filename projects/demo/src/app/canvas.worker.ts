@@ -60,8 +60,8 @@ function initializeIndexedDB() {
       db.createObjectStore('history', { autoIncrement: true });
     }
 
-    if (!db.objectStoreNames.contains('paintings')) {
-      db.createObjectStore('paintings', { autoIncrement: true });
+    if (!db.objectStoreNames.contains('painting')) {
+      db.createObjectStore('painting', { autoIncrement: true });
     }
   };
 

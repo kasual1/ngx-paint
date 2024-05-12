@@ -1,0 +1,16 @@
+:host {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+mat-form-field.canvas-size-select {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  margin: 12px
+}
