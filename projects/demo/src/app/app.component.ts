@@ -58,19 +58,41 @@ export class AppComponent {
       case 'restoreHistory':
         this.handleRestoreHistory(event);
         break;
+      case 'pushToHistory':
+        this.handlePushToHistory(event);
+        break;
+      case 'popFromHistoryUntilHistoryItem':
+        this.handlePopFromHistoryUntilHistoryItem(event);
+        break;
     }
   }
 
   handleInitializeIndexedDB() {
     this.dbInitialized = true;
-    this.worker.postMessage({ type: 'restoreHistory', width: window.innerWidth, height: window.innerHeight});
+    this.worker.postMessage({
+      type: 'restoreHistory',
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
   }
 
   handleRestoreHistory(event: MessageEvent) {
     this.undoStack = event.data.historyItems;
     const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
     this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
-    this.canvasComponent.brush = new Brush('Brush', mostRecentHistoryItem.brushOptions);
+    this.canvasComponent.brush = new Brush(
+      'Brush',
+      mostRecentHistoryItem.brushOptions
+    );
+    console.info(`Restored history in ${event.data.time}ms`);
+  }
+
+  handlePushToHistory(event: MessageEvent) {
+    console.info('Pushed to history');
+  }
+
+  handlePopFromHistoryUntilHistoryItem(event: MessageEvent) {
+    console.info('Popped from history');
   }
 
   onHistoryChange(event: StackEvent) {
@@ -98,7 +120,7 @@ export class AppComponent {
     if (event.type === 'clear') {
       this.worker.postMessage({
         type: 'popFromHistoryUntilHistoryItem',
-        item: event.item
+        item: event.item,
       });
     }
   }

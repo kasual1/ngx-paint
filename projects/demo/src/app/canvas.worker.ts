@@ -94,7 +94,7 @@ function pushToHistory(data: PushToHistoryData) {
   const addItemRequest = store.add(compressedItem);
 
   addItemRequest.onsuccess = function () {
-    console.log('Successfully added item to history:', compressedItem);
+    postMessage({ type: 'pushToHistory', item: data.item });
   };
 
   addItemRequest.onerror = function () {
@@ -112,12 +112,13 @@ function popFromHistoryUntilHistoryItem(
   request.onsuccess = function () {
     const cursor = request.result;
     if (cursor) {
-      debugger;
       if ((cursor.value as HistoryItem).uuid !== data.item.uuid) {
         cursor.delete();
         cursor.continue();
       }
     }
+
+    postMessage({ type: 'popFromHistoryUntilHistoryItem', item: data.item });
   };
 
   request.onerror = function () {
@@ -126,12 +127,12 @@ function popFromHistoryUntilHistoryItem(
 }
 
 function restoreHistory(data: RestoreHistoryData) {
+  const start = performance.now();
   const transaction = db!.transaction('history', 'readonly');
   const store = transaction.objectStore('history');
   const request = store.getAll();
 
   request.onsuccess = function () {
-    const start = performance.now();
     const compressedHistoryItems = request.result as CompressedHistoryItem[];
     const historyItems: HistoryItem[] = [];
 
@@ -153,8 +154,7 @@ function restoreHistory(data: RestoreHistoryData) {
       historyItems.push(item);
     }
     const end = performance.now();
-    console.log(`Execution time: ${end - start} milliseconds`);
-    postMessage({ type: 'restoreHistory', historyItems });
+    postMessage({ type: 'restoreHistory', historyItems, time: end - start});
   };
 
   request.onerror = function () {
@@ -210,7 +210,7 @@ function convertPixelDiffsToImageData(
   for (let i = 0; i < diffs.length; i++) {
     const diff = diffs[i];
     const index = (diff.y * width + diff.x) * 4;
-    const colorComponents = diff.color.match(/[\d\.]+/g); // Extract the numbers from the color string
+    const colorComponents = diff.color.match(/[\d\.]+/g);
     if (colorComponents) {
       newImage.data[index] = parseInt(colorComponents[0]);
       newImage.data[index + 1] = parseInt(colorComponents[1]);
