@@ -131,6 +131,7 @@ function restoreHistory(data: RestoreHistoryData) {
   const request = store.getAll();
 
   request.onsuccess = function () {
+    const start = performance.now();
     const compressedHistoryItems = request.result as CompressedHistoryItem[];
     const historyItems: HistoryItem[] = [];
 
@@ -151,6 +152,8 @@ function restoreHistory(data: RestoreHistoryData) {
       };
       historyItems.push(item);
     }
+    const end = performance.now();
+    console.log(`Execution time: ${end - start} milliseconds`);
     postMessage({ type: 'restoreHistory', historyItems });
   };
 
@@ -197,20 +200,24 @@ function convertPixelDiffsToImageData(
   width: number,
   height: number
 ): ImageData {
-  const offscreenCanvas = new OffscreenCanvas(width, height);
-  const ctx = offscreenCanvas.getContext('2d')!;
-
-  if (previousImage) {
-    ctx.putImageData(previousImage, 0, 0);
+  let newImage;
+  if (!previousImage) {
+    newImage = new ImageData(width, height);
+  } else {
+    newImage = new ImageData(previousImage.data.slice(), width, height);
   }
 
   for (let i = 0; i < diffs.length; i++) {
     const diff = diffs[i];
-    ctx.fillStyle = diff.color;
-    ctx.fillRect(diff.x, diff.y, 1, 1);
+    const index = (diff.y * width + diff.x) * 4;
+    const colorComponents = diff.color.match(/[\d\.]+/g); // Extract the numbers from the color string
+    if (colorComponents) {
+      newImage.data[index] = parseInt(colorComponents[0]);
+      newImage.data[index + 1] = parseInt(colorComponents[1]);
+      newImage.data[index + 2] = parseInt(colorComponents[2]);
+      newImage.data[index + 3] = colorComponents[3] ? Math.ceil(parseFloat(colorComponents[3]) * 255) : 255;;
+    }
   }
-
-  const newImage = ctx.getImageData(0, 0, width, height);
 
   return newImage;
 }
