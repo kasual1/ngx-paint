@@ -5,9 +5,7 @@ import {
   EventEmitter,
   HostListener,
   Input,
-  OnChanges,
   Output,
-  SimpleChanges,
   ViewChild,
   ViewEncapsulation,
 } from '@angular/core';
@@ -16,7 +14,6 @@ import { CommonModule } from '@angular/common';
 import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
 import { CursorService } from './cursor.service';
-import { last } from 'rxjs';
 
 @Component({
   selector: 'ngx-paint',
@@ -59,6 +56,16 @@ import { last } from 'rxjs';
     </div>
   `,
   styles: `
+
+    ngx-paint {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      background-color: #EBF0F8;
+    }
+
     .cursor-circle {
       position: absolute;
       border: 1px solid rgba(0, 0, 0, 0.5);
@@ -71,6 +78,7 @@ import { last } from 'rxjs';
 
     canvas {
       display: block;
+      box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
     }
 
     ngx-paint-action-panel{
@@ -103,6 +111,12 @@ export class CanvasComponent implements AfterViewInit {
 
   @Input()
   redoStack: HistoryItem[] = [];
+
+  @Input()
+  width = window.innerWidth;
+
+  @Input()
+  height = window.innerHeight;
 
   @Output()
   undoStackChange = new EventEmitter<StackEvent>();
@@ -154,27 +168,30 @@ export class CanvasComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.setupCanvas();
-    this.setupEventListeners();
     this.resizeCanvas();
+    this.fillCanvasWithWhite();
   }
 
   private setupCanvas() {
     this.context = this.canvasRef.nativeElement.getContext('2d');
     this.canvas = this.canvasRef.nativeElement;
-  }
-
-  private setupEventListeners() {
-    if (this.canvas) {
-      this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-      this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
-      this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
-    }
+    this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+    this.canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+    this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
   }
 
   private resizeCanvas() {
     if (this.canvas) {
-      this.canvas.width = window.innerWidth;
-      this.canvas.height = window.innerHeight;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
+  }
+
+  private fillCanvasWithWhite() {
+    if (this.context && this.canvas) {
+      this.canvas.style.backgroundColor = 'white';
+      this.context.fillStyle = 'white';
+      this.context.fillRect(0, 0, this.canvas!.width, this.canvas!.height);
     }
   }
 
@@ -200,7 +217,7 @@ export class CanvasComponent implements AfterViewInit {
         this.pushToUndoStack(historyItem);
       }
 
-      if(this.undoStack.length === 0 && this.redoStack.length === 0){
+      if (this.undoStack.length === 0 && this.redoStack.length === 0) {
         this.addBlankCanvasToUndoStack();
       }
 
@@ -268,8 +285,10 @@ export class CanvasComponent implements AfterViewInit {
 
   onUndo() {
     if (this.undoStack.length > 0) {
-
-      if (this.lastUndoRedoAction === 'redo' || this.lastUndoRedoAction === null) {
+      if (
+        this.lastUndoRedoAction === 'redo' ||
+        this.lastUndoRedoAction === null
+      ) {
         const lastItem = this.popFromUndoStack();
         this.pushToRedoStack(lastItem!);
       }
@@ -286,8 +305,10 @@ export class CanvasComponent implements AfterViewInit {
 
   onRedo() {
     if (this.redoStack.length > 0) {
-
-      if (this.lastUndoRedoAction === 'undo' || this.lastUndoRedoAction === null) {
+      if (
+        this.lastUndoRedoAction === 'undo' ||
+        this.lastUndoRedoAction === null
+      ) {
         const lastItem = this.popFromRedoStack();
         this.pushToUndoStack(lastItem!);
       }

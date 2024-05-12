@@ -2,6 +2,8 @@
 @if(dbInitialized === true){
   <ngx-paint
   [undoStack]="undoStack"
+  [width]="400"
+  [height]="200"
   (historyChange)="onHistoryChange($event)"
   (redoStackChange)="onRedoStackChange($event)"
 ></ngx-paint>
