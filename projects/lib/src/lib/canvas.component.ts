@@ -16,6 +16,7 @@ import { CommonModule } from '@angular/common';
 import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
 import { CursorService } from './cursor.service';
+import { timestamp } from 'rxjs';
 
 @Component({
   selector: 'ngx-paint',
@@ -171,6 +172,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['width'] || changes['height']) {
       this.resizeCanvas();
+      this.fillCanvasWithWhite();
     }
   }
 
@@ -209,7 +211,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
         this.clearRedoStack();
 
         const historyItem = {
-          uuid: this.generateUuid(),
+          timestamp: new Date(),
           snapshot: this.canvas!.getContext('2d')!.getImageData(
             0,
             0,
@@ -258,7 +260,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
       this.mouseDown = false;
 
       const historyItem = {
-        uuid: this.generateUuid(),
+        timestamp: new Date(),
         snapshot: this.canvas!.getContext('2d')!.getImageData(
           0,
           0,
@@ -340,7 +342,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
 
   addBlankCanvasToUndoStack() {
     const historyItem = {
-      uuid: this.generateUuid(),
+      timestamp: new Date(),
       snapshot: this.canvas!.getContext('2d')!.getImageData(
         0,
         0,
@@ -409,7 +411,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
 }
 
 export interface HistoryItem {
-  uuid: string;
+  timestamp: Date;
   snapshot: ImageData;
   brushOptions: BrushOptions;
 }

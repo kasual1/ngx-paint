@@ -9,25 +9,50 @@ interface PixelDiff {
 }
 
 interface CompressedHistoryItem {
-  uuid: string;
+  timestamp: Date;
   brushOptions: BrushOptions;
   pixelDiff: PixelDiff[];
 }
 
 interface PushToHistoryData {
   type: 'pushToHistory';
+  painting: Painting;
   item: HistoryItem;
 }
 
+
 interface PopFromHistoryUntilHistoryItemData {
   type: 'popFromHistoryUntilIndex';
+  painting: Painting;
   item: HistoryItem;
 }
 
 interface RestoreHistoryData {
   type: 'restoreHistory';
+  painting: Painting;
   width: number;
   height: number;
+}
+
+
+interface SavePaintingData {
+  type: 'savePaintingMetaData';
+  painting: Painting;
+}
+
+interface RestorePaintingData {
+  type: 'restorePainting';
+  id: string;
+}
+
+interface Painting {
+  id: string;
+  title: string;
+  canvas: {
+    resolution: string;
+    width: number;
+    height: number;
+  };
 }
 
 let db: IDBDatabase | null = null;
@@ -48,6 +73,12 @@ addEventListener('message', ({ data }) => {
     case 'restoreHistory':
       restoreHistory(data);
       break;
+    case 'savePainting':
+      savePainting(data);
+      break;
+    case 'restorePainting':
+      restorePainting(data);
+      break;
   }
 });
 
@@ -57,11 +88,11 @@ function initializeIndexedDB() {
   request.onupgradeneeded = function (event) {
     db = (event.target as IDBOpenDBRequest).result;
     if (!db.objectStoreNames.contains('history')) {
-      db.createObjectStore('history', { autoIncrement: true });
+      db.createObjectStore('history', { autoIncrement: false });
     }
 
     if (!db.objectStoreNames.contains('painting')) {
-      db.createObjectStore('painting', { autoIncrement: true });
+      db.createObjectStore('painting', { keyPath: 'id'});
     }
   };
 
@@ -86,12 +117,12 @@ function pushToHistory(data: PushToHistoryData) {
   previousImage = data.item.snapshot;
 
   const compressedItem: CompressedHistoryItem = {
-    uuid: data.item.uuid,
+    timestamp: data.item.timestamp,
     brushOptions: data.item.brushOptions,
     pixelDiff: pixelDiff,
   };
 
-  const addItemRequest = store.add(compressedItem);
+  const addItemRequest = store.add(compressedItem, buildHistoryKey(data.painting.id, compressedItem.timestamp));
 
   addItemRequest.onsuccess = function () {
     postMessage({ type: 'pushToHistory', item: data.item });
@@ -112,7 +143,7 @@ function popFromHistoryUntilHistoryItem(
   request.onsuccess = function () {
     const cursor = request.result;
     if (cursor) {
-      if ((cursor.value as HistoryItem).uuid !== data.item.uuid) {
+      if ( cursor.key !== buildHistoryKey(data.painting.id, data.item.timestamp)	) {
         cursor.delete();
         cursor.continue();
       }
@@ -127,10 +158,16 @@ function popFromHistoryUntilHistoryItem(
 }
 
 function restoreHistory(data: RestoreHistoryData) {
+
   const start = performance.now();
   const transaction = db!.transaction('history', 'readonly');
   const store = transaction.objectStore('history');
-  const request = store.getAll();
+
+  const lowerBound = `${data.painting.id}-`;
+  const upperBound = `${data.painting.id}-${new Date().getTime()}`;
+  const keyRange = IDBKeyRange.bound(lowerBound, upperBound);
+
+  const request = store.getAll(keyRange);
 
   request.onsuccess = function () {
     const compressedHistoryItems = request.result as CompressedHistoryItem[];
@@ -142,19 +179,19 @@ function restoreHistory(data: RestoreHistoryData) {
       previousImage = convertPixelDiffsToImageData(
         compressedItem.pixelDiff,
         previousImage,
-        data.width,
-        data.height
+        data.painting.canvas.width,
+        data.painting.canvas.height
       );
 
       const item: HistoryItem = {
-        uuid: compressedItem.uuid,
+        timestamp: compressedItem.timestamp,
         brushOptions: compressedItem.brushOptions,
-        snapshot: previousImage
+        snapshot: previousImage,
       };
       historyItems.push(item);
     }
     const end = performance.now();
-    postMessage({ type: 'restoreHistory', historyItems, time: end - start});
+    postMessage({ type: 'restoreHistory', historyItems, time: end - start });
   };
 
   request.onerror = function () {
@@ -215,9 +252,45 @@ function convertPixelDiffsToImageData(
       newImage.data[index] = parseInt(colorComponents[0]);
       newImage.data[index + 1] = parseInt(colorComponents[1]);
       newImage.data[index + 2] = parseInt(colorComponents[2]);
-      newImage.data[index + 3] = colorComponents[3] ? Math.ceil(parseFloat(colorComponents[3]) * 255) : 255;;
+      newImage.data[index + 3] = colorComponents[3]
+        ? Math.ceil(parseFloat(colorComponents[3]) * 255)
+        : 255;
     }
   }
 
   return newImage;
+}
+
+function savePainting(data: SavePaintingData) {
+  const transaction = db!.transaction('painting', 'readwrite');
+  const store = transaction.objectStore('painting');
+  const request = store.put(data.painting);
+  request.onsuccess = function () {
+    postMessage({
+      type: 'savePainting',
+      painting: data.painting,
+    });
+  };
+
+  request.onerror = function () {
+    console.error('Error saving painting:', request.error);
+  };
+}
+
+function restorePainting(data: RestorePaintingData) {
+  const transaction = db!.transaction('painting', 'readonly');
+  const store = transaction.objectStore('painting');
+  const request = store.get(data.id);
+
+  request.onsuccess = function () {
+    postMessage({ type: 'restorePainting', painting: request.result });
+  };
+
+  request.onerror = function () {
+    console.error('Error restoring painting:', request.error);
+  };
+}
+
+function buildHistoryKey(prefix: string, timestamp: Date) {
+  return `${prefix}-${timestamp.getTime()}`;
 }

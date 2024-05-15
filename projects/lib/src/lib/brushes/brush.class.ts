@@ -1,10 +1,10 @@
-import { CanvasHelper } from "../helper/canvas.helper";
-import { TrigonometryHelper } from "../helper/trigonometry.helper";
+import { CanvasHelper } from '../helper/canvas.helper';
+import { TrigonometryHelper } from '../helper/trigonometry.helper';
 
 export enum BrushType {
   Brush = 'Brush',
   Stylus = 'Stylus',
-  Eraser = 'Eraser'
+  Eraser = 'Eraser',
 }
 
 export interface BrushOptions {
@@ -13,7 +13,7 @@ export interface BrushOptions {
   texture?: HTMLImageElement;
 }
 
-export class Brush  {
+export class Brush {
   private _name: string = 'Stylus';
   private _type: BrushType = BrushType.Stylus;
   private _icon: string = 'stylus';
@@ -35,7 +35,6 @@ export class Brush  {
   dynamicLineWidth = 0;
 
   constructor(name: string, options: BrushOptions) {
-
     this._name = name;
     this._color = options.color ?? '#000000';
     this._size = options.size;
@@ -48,7 +47,10 @@ export class Brush  {
     }
 
     this._texture.onload = () => {
-      this._texture = CanvasHelper.createTintedImage(this._texture!, this._color);
+      this._texture = CanvasHelper.createTintedImage(
+        this._texture!,
+        this._color
+      );
     };
   }
 
@@ -129,6 +131,12 @@ export class Brush  {
       let interpolatedX = this.prevX + (x - this.prevX) * t;
       let interpolatedY = this.prevY + (y - this.prevY) * t;
 
+      // Generate a random opacity between 0.1 and 1.0
+      let opacity = 0.1 + Math.random() * 0.9;
+
+      // Apply the opacity
+      ctx.globalAlpha = opacity;
+
       ctx.drawImage(
         this._texture!,
         interpolatedX - this.dynamicLineWidth / 2,
@@ -136,6 +144,9 @@ export class Brush  {
         this.dynamicLineWidth,
         this.dynamicLineWidth
       );
+
+      // Reset the opacity
+      ctx.globalAlpha = 1.0;
     }
 
     this.prevX = x;
