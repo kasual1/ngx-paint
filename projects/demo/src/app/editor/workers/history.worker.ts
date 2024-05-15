@@ -3,8 +3,8 @@
 import { BrushOptions, HistoryItem } from 'lib';
 import { HistoryItemHelper } from '../helpers/history-item.helper';
 import { IndexedDbHelper } from '../helpers/indexeddb.helper';
-import { WorkerActionMessage } from '../enums/worker-action-message.enum';
-import { WorkerCompletionMessage } from '../enums/worker-completion-message.enum';
+import { HistoryAction } from '../enums/history-action.enum';
+import { HistoryCompletion } from '../enums/history-completion.enum';
 
 interface PixelDiff {
   x: number;
@@ -35,16 +35,6 @@ interface RestoreHistoryData {
   painting: Painting;
 }
 
-interface SavePaintingData {
-  type: 'savePaintingMetaData';
-  painting: Painting;
-}
-
-interface RestorePaintingData {
-  type: 'restorePainting';
-  id: string;
-}
-
 interface Painting {
   id: string;
   title: string;
@@ -55,25 +45,23 @@ interface Painting {
   };
 }
 
-const messageHandlers: {[key in WorkerActionMessage]: (data: any) => void} = {
-  [WorkerActionMessage.InitializeIndexedDB]: initializeIndexedDB,
-  [WorkerActionMessage.PushToHistory]: pushToHistory,
-  [WorkerActionMessage.PopFromHistoryUntilHistoryItem]: popFromHistoryUntilHistoryItem,
-  [WorkerActionMessage.RestoreHistory]: restoreHistory,
-  [WorkerActionMessage.SavePainting]: savePainting,
-  [WorkerActionMessage.RestorePainting]: restorePainting,
+const messageHandlers: {[key in HistoryAction]: (data: any) => void} = {
+  [HistoryAction.Initialize]: initialize,
+  [HistoryAction.PushToHistory]: pushToHistory,
+  [HistoryAction.PopFromHistoryUntilHistoryItem]: popFromHistoryUntilHistoryItem,
+  [HistoryAction.RestoreHistory]: restoreHistory,
 };
 
 const defaultHandler = (data: any) => console.error(`No handler for message type "${data.type}"`);
 
 addEventListener('message', ({data}) => {
-  const handler = messageHandlers[data.type as WorkerActionMessage] || defaultHandler;
+  const handler = messageHandlers[data.type as HistoryAction] || defaultHandler;
   handler(data);
 });
 
-function initializeIndexedDB() {
+function initialize() {
   IndexedDbHelper.initialize().then(() => {
-    postMessage({ type: WorkerCompletionMessage.InitializedIndexedDB });
+    postMessage({ type: HistoryCompletion.Initialized });
   });
 }
 
@@ -86,7 +74,7 @@ function pushToHistory(data: PushToHistoryData) {
   );
 
   IndexedDbHelper.saveObject('history', key, compressedItem).then((historyItem) => {
-    postMessage({ type: WorkerCompletionMessage.PushedToHistory, item: historyItem });
+    postMessage({ type: HistoryCompletion.PushedToHistory, item: historyItem });
   });
 }
 
@@ -99,7 +87,7 @@ function popFromHistoryUntilHistoryItem(
   );
 
   IndexedDbHelper.deleteUntilKey('history', key).then(() => {
-    postMessage({ type: WorkerCompletionMessage.PoppedFromHistoryUntilHistoryItem, item: data.item });
+    postMessage({ type: HistoryCompletion.PoppedFromHistoryUntilHistoryItem, item: data.item });
   });
 }
 
@@ -127,23 +115,6 @@ function restoreHistory(data: RestoreHistoryData) {
         historyItems.push(item);
       }
 
-      postMessage({ type: WorkerCompletionMessage.RestoredHistory, historyItems });
+      postMessage({ type: HistoryCompletion.RestoredHistory, historyItems });
     });
-}
-
-function savePainting(data: SavePaintingData) {
-  IndexedDbHelper
-    .saveObject('painting', data.painting.id, data.painting)
-    .then((id) => {
-      postMessage({
-        type: WorkerCompletionMessage.SavedPainting,
-        id
-      });
-    });
-}
-
-function restorePainting(data: RestorePaintingData) {
-  IndexedDbHelper.getObject('painting', data.id).then((painting) => {
-    postMessage({ type: WorkerCompletionMessage.RestoredPainting, painting });
-  });
 }

@@ -15,7 +15,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Location } from '@angular/common';
 import { UuidService } from '../../uuid.service';
-import { WorkerCompletionMessage } from '../enums/worker-completion-message.enum';
+import { HistoryCompletion } from '../enums/history-completion.enum';
+import { PaintingCompletion } from '../enums/painting-completion.enum copy';
+import { PaintingAction } from '../enums/painting-action.enum copy';
+import { HistoryAction } from '../enums/history-action.enum';
 
 interface Painting {
   id: string;
@@ -43,8 +46,6 @@ interface Painting {
   ],
   providers: [Location],
   template: `
-    @if(dbInitialized === true && painting !== undefined){
-
     <div class="top-panel">
       <mat-form-field>
         <mat-label>Title</mat-label>
@@ -77,7 +78,6 @@ interface Painting {
       (historyChange)="onHistoryChange($event)"
       (redoStackChange)="onRedoStackChange($event)"
     ></ngx-paint>
-    }
   `,
   styles: `
       :host {
@@ -101,16 +101,16 @@ interface Painting {
 })
 export class EditorComponent {
   @Input()
-  id: string | null = null;
+  id: string | undefined;
 
   @ViewChild(CanvasComponent)
   canvasComponent!: CanvasComponent;
 
-  worker!: Worker;
+  historyWorker!: Worker;
+
+  paintingWorker!: Worker;
 
   undoStack: HistoryItem[] = [];
-
-  dbInitialized = false;
 
   painting: Painting = {
     id: this.uuidService.createUuid(),
@@ -159,128 +159,113 @@ export class EditorComponent {
     }
   }
 
-  messageHandlers: { [key in WorkerCompletionMessage]: (event: MessageEvent) => void } = {
-    [WorkerCompletionMessage.InitializedIndexedDB]: this.handleInitializeIndexedDB.bind(this),
-    [WorkerCompletionMessage.RestoredHistory]: this.handleRestoreHistory.bind(this),
-    [WorkerCompletionMessage.PushedToHistory]: this.handlePushToHistory.bind(this),
-    [WorkerCompletionMessage.PoppedFromHistoryUntilHistoryItem]: this.handlePopFromHistoryUntilHistoryItem.bind(this),
-    [WorkerCompletionMessage.SavedPainting]: this.hanldeSavePainting.bind(this),
-    [WorkerCompletionMessage.RestoredPainting]: this.handleRestorePainting.bind(this),
-  };
-
   constructor(private location: Location, private uuidService: UuidService) {
-    this.initializeWorker();
+    this.initializeWorkers();
   }
 
-  initializeWorker() {
+  initializeWorkers() {
     if (typeof Worker !== 'undefined') {
-      this.worker = new Worker(new URL('../workers/editor.worker', import.meta.url), {
-        type: 'module',
-      });
-      this.worker.onmessage = this.handleMessage.bind(this);
-      this.worker.postMessage({
-        type: 'initializeIndexedDB',
-      });
+      this.initializeHistoryWorker();
+      this.initializePaintingWorker();
     } else {
       throw new Error('Web Workers are not supported in this environment');
     }
   }
 
-  handleMessage(event: MessageEvent) {
-    const handler = this.messageHandlers[event.data.type as WorkerCompletionMessage];
-    if (handler) {
-      handler(event);
-    } else {
-      console.error(`No handler for message type "${event.data.type}"`);
-    }
+  initializeHistoryWorker() {
+    this.historyWorker = new Worker(
+      new URL('../workers/history.worker', import.meta.url),
+      {
+        type: 'module',
+      }
+    );
+
+    const historyCompletionHandlers: {
+      [key in HistoryCompletion]: (event: MessageEvent) => void;
+    } = {
+      [HistoryCompletion.Initialized]: () => {},
+      [HistoryCompletion.RestoredHistory]: this.handleRestoredHistory.bind(this),
+      [HistoryCompletion.PushedToHistory]: () => {},
+      [HistoryCompletion.PoppedFromHistoryUntilHistoryItem]: () => {},
+    };
+
+    this.historyWorker.onmessage = (event: MessageEvent) => {
+      const handler =
+        historyCompletionHandlers[event.data.type as HistoryCompletion];
+      if (handler) {
+        handler(event);
+      } else {
+        console.error(`No handler for message type "${event.data.type}"`);
+      }
+    };
+
+    this.historyWorker.postMessage({
+      type: HistoryAction.Initialize,
+    });
   }
 
-  handleInitializeIndexedDB() {
-    this.dbInitialized = true;
+  initializePaintingWorker() {
+    this.paintingWorker = new Worker(
+      new URL('../workers/painting.worker', import.meta.url),
+      {
+        type: 'module',
+      }
+    );
+
+    const paintingCompletionHandlers: {
+      [key in PaintingCompletion]: (event: MessageEvent) => void;
+    } = {
+      [PaintingCompletion.Initialized]: this.handlePaintingWorkerInitialized.bind(this),
+      [PaintingCompletion.SavedPainting]: this.handleSavedPainting.bind(this),
+      [PaintingCompletion.RestoredPainting]:
+        this.handleRestoredPainting.bind(this),
+    };
+
+    this.paintingWorker.onmessage = (event: MessageEvent) => {
+      const handler =
+        paintingCompletionHandlers[event.data.type as PaintingCompletion];
+      if (handler) {
+        handler(event);
+      } else {
+        console.error(`No handler for message type "${event.data.type}"`);
+      }
+    };
+
+    this.paintingWorker.postMessage({
+      type: PaintingAction.Initialize,
+    });
+  }
+
+  handlePaintingWorkerInitialized() {
     if (this.id === undefined) {
-      this.worker.postMessage({
-        type: 'savePainting',
+      this.paintingWorker.postMessage({
+        type: PaintingAction.SavePainting,
         painting: this.painting,
       });
     } else {
-      this.worker.postMessage({
-        type: 'restorePainting',
+      this.paintingWorker.postMessage({
+        type: PaintingAction.RestorePainting,
         id: this.id,
       });
     }
   }
 
-  handleRestoreHistory(event: MessageEvent) {
-    if (event.data.historyItems.length === 0) {
-      return;
-    }
-
-    this.undoStack = event.data.historyItems;
-    const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
-    this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
-    this.canvasComponent.brush = new Brush(
-      'Brush',
-      mostRecentHistoryItem.brushOptions
-    );
-    console.info(`Restored history`);
-  }
-
-  handlePushToHistory(event: MessageEvent) {
-    console.info('Pushed to history');
-  }
-
-  handlePopFromHistoryUntilHistoryItem(event: MessageEvent) {
-    console.info('Popped from history');
-  }
-
-  hanldeSavePainting(event: MessageEvent) {
+  handleSavedPainting(event: MessageEvent) {
     this.location.replaceState(`/${event.data.id}`);
   }
 
-  handleRestorePainting(event: MessageEvent) {
+  handleRestoredPainting(event: MessageEvent) {
     this.painting = event.data.painting;
-    this.worker.postMessage({
-      type: 'restoreHistory',
+    this.historyWorker.postMessage({
+      type: HistoryAction.RestoreHistory,
       painting: this.painting,
     });
   }
 
-  onHistoryChange(event: StackEvent) {
-    if (!this.dbInitialized) {
-      return;
-    }
-
-    if (event.type === 'push') {
-      this.worker.postMessage({
-        type: 'pushToHistory',
-        canvas: {
-          width: this.canvasComponent?.canvas?.width ?? window.innerWidth,
-          height: this.canvasComponent?.canvas?.height ?? window.innerHeight,
-        },
-        item: event.item,
-        painting: this.painting,
-      });
-    }
-  }
-
-  onRedoStackChange(event: StackEvent) {
-    if (!this.dbInitialized) {
-      return;
-    }
-
-    if (event.type === 'clear') {
-      this.worker.postMessage({
-        type: 'popFromHistoryUntilHistoryItem',
-        item: event.item,
-        painting: this.painting,
-      });
-    }
-  }
-
   onTitleChange(event: Event) {
     this.painting.title = (event.target as HTMLInputElement).value;
-    this.worker.postMessage({
-      type: 'savePainting',
+    this.paintingWorker.postMessage({
+      type: PaintingAction.SavePainting,
       painting: this.painting,
     });
   }
@@ -295,9 +280,49 @@ export class EditorComponent {
       event.value === 'auto'
         ? window.innerHeight
         : parseInt(event.value.split('x')[1]);
-    this.worker.postMessage({
-      type: 'savePainting',
+    this.paintingWorker.postMessage({
+      type: PaintingAction.SavePainting,
       painting: this.painting,
     });
+  }
+
+
+  handleRestoredHistory(event: MessageEvent) {
+    if (event.data.historyItems.length === 0) {
+      return;
+    }
+
+    this.undoStack = event.data.historyItems;
+    const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
+    this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
+    this.canvasComponent.brush = new Brush(
+      'Brush',
+      mostRecentHistoryItem.brushOptions
+    );
+    console.info(`Restored history`);
+  }
+
+  onHistoryChange(event: StackEvent) {
+    if (event.type === 'push') {
+      this.historyWorker.postMessage({
+        type: HistoryAction.PushToHistory,
+        canvas: {
+          width: this.canvasComponent?.canvas?.width ?? window.innerWidth,
+          height: this.canvasComponent?.canvas?.height ?? window.innerHeight,
+        },
+        item: event.item,
+        painting: this.painting,
+      });
+    }
+  }
+
+  onRedoStackChange(event: StackEvent) {
+    if (event.type === 'clear') {
+      this.historyWorker.postMessage({
+        type: HistoryAction.PopFromHistoryUntilHistoryItem,
+        item: event.item,
+        painting: this.painting,
+      });
+    }
   }
 }
