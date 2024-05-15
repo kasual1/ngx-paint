@@ -1,60 +1,25 @@
 /// <reference lib="webworker" />
 
-import { BrushOptions, HistoryItem } from 'lib';
+import { HistoryItem } from 'lib';
 import { HistoryItemHelper } from '../helpers/history-item.helper';
 import { IndexedDbHelper } from '../helpers/indexeddb.helper';
 import { HistoryAction } from '../enums/history-action.enum';
 import { HistoryCompletion } from '../enums/history-completion.enum';
+import { CompressedHistoryItem } from '../models/compressed-history-item.model';
 
-interface PixelDiff {
-  x: number;
-  y: number;
-  color: string;
-}
 
-interface CompressedHistoryItem {
-  timestamp: Date;
-  brushOptions: BrushOptions;
-  pixelDiff: PixelDiff[];
-}
-
-interface PushToHistoryData {
-  type: 'pushToHistory';
-  painting: Painting;
-  item: HistoryItem;
-}
-
-interface PopFromHistoryUntilHistoryItemData {
-  type: 'popFromHistoryUntilIndex';
-  painting: Painting;
-  item: HistoryItem;
-}
-
-interface RestoreHistoryData {
-  type: 'restoreHistory';
-  painting: Painting;
-}
-
-interface Painting {
-  id: string;
-  title: string;
-  canvas: {
-    resolution: string;
-    width: number;
-    height: number;
-  };
-}
-
-const messageHandlers: {[key in HistoryAction]: (data: any) => void} = {
+const messageHandlers: { [key in HistoryAction]: (data: any) => void } = {
   [HistoryAction.Initialize]: initialize,
   [HistoryAction.PushToHistory]: pushToHistory,
-  [HistoryAction.PopFromHistoryUntilHistoryItem]: popFromHistoryUntilHistoryItem,
+  [HistoryAction.PopFromHistoryUntilHistoryItem]:
+    popFromHistoryUntilHistoryItem,
   [HistoryAction.RestoreHistory]: restoreHistory,
 };
 
-const defaultHandler = (data: any) => console.error(`No handler for message type "${data.type}"`);
+const defaultHandler = (data: any) =>
+  console.error(`No handler for message type "${data.type}"`);
 
-addEventListener('message', ({data}) => {
+addEventListener('message', ({ data }) => {
   const handler = messageHandlers[data.type as HistoryAction] || defaultHandler;
   handler(data);
 });
@@ -65,7 +30,10 @@ function initialize() {
   });
 }
 
-function pushToHistory(data: PushToHistoryData) {
+function pushToHistory(data: {
+  painting: Painting;
+  item: HistoryItem;
+}) {
   const compressedItem: CompressedHistoryItem =
     HistoryItemHelper.createCompressedHistoryItem(data.item);
   const key = HistoryItemHelper.buildHistoryKey(
@@ -73,25 +41,36 @@ function pushToHistory(data: PushToHistoryData) {
     compressedItem.timestamp
   );
 
-  IndexedDbHelper.saveObject('history', key, compressedItem).then((historyItem) => {
-    postMessage({ type: HistoryCompletion.PushedToHistory, item: historyItem });
-  });
+  IndexedDbHelper.saveObject('history', key, compressedItem).then(
+    (historyItem) => {
+      postMessage({
+        type: HistoryCompletion.PushedToHistory,
+        item: historyItem,
+      });
+    }
+  );
 }
 
-function popFromHistoryUntilHistoryItem(
-  data: PopFromHistoryUntilHistoryItemData
-) {
+function popFromHistoryUntilHistoryItem(data: {
+  painting: Painting;
+  item: HistoryItem;
+}) {
   const key = HistoryItemHelper.buildHistoryKey(
     data.painting.id,
     data.item.timestamp
   );
 
   IndexedDbHelper.deleteUntilKey('history', key).then(() => {
-    postMessage({ type: HistoryCompletion.PoppedFromHistoryUntilHistoryItem, item: data.item });
+    postMessage({
+      type: HistoryCompletion.PoppedFromHistoryUntilHistoryItem,
+      item: data.item,
+    });
   });
 }
 
-function restoreHistory(data: RestoreHistoryData) {
+function restoreHistory(data: {
+  painting: Painting;
+}) {
   const lowerBound = HistoryItemHelper.buildHistoryKey(
     data.painting.id,
     new Date(0)
@@ -101,9 +80,8 @@ function restoreHistory(data: RestoreHistoryData) {
     new Date()
   );
 
-  IndexedDbHelper
-    .getObjectsWithinRange('history', lowerBound, upperBound)
-    .then((compressedHistoryItems) => {
+  IndexedDbHelper.getObjectsWithinRange('history', lowerBound, upperBound).then(
+    (compressedHistoryItems) => {
       const historyItems: HistoryItem[] = [];
 
       for (let i = 0; i < compressedHistoryItems.length; i++) {
@@ -116,5 +94,6 @@ function restoreHistory(data: RestoreHistoryData) {
       }
 
       postMessage({ type: HistoryCompletion.RestoredHistory, historyItems });
-    });
+    }
+  );
 }

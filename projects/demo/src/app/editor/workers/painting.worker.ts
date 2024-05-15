@@ -1,30 +1,9 @@
 /// <reference lib="webworker" />
 
 import { IndexedDbHelper } from '../helpers/indexeddb.helper';
-import { HistoryAction } from '../enums/history-action.enum';
 import { PaintingCompletion } from '../enums/painting-completion.enum copy';
 import { PaintingAction } from '../enums/painting-action.enum copy';
 
-
-interface SavePaintingData {
-  type: 'savePaintingMetaData';
-  painting: Painting;
-}
-
-interface RestorePaintingData {
-  type: 'restorePainting';
-  id: string;
-}
-
-interface Painting {
-  id: string;
-  title: string;
-  canvas: {
-    resolution: string;
-    width: number;
-    height: number;
-  };
-}
 
 const messageHandlers: {[key in PaintingAction]: (data: any) => void} = {
   [PaintingAction.Initialize]: initialize,
@@ -45,7 +24,9 @@ function initialize() {
   });
 }
 
-function savePainting(data: SavePaintingData) {
+function savePainting(data: {
+  painting: Painting;
+}) {
   IndexedDbHelper
     .saveObject('painting', data.painting.id, data.painting)
     .then((id) => {
@@ -56,7 +37,9 @@ function savePainting(data: SavePaintingData) {
     });
 }
 
-function restorePainting(data: RestorePaintingData) {
+function restorePainting(data: {
+  id: string;
+}) {
   IndexedDbHelper.getObject('painting', data.id).then((painting) => {
     postMessage({ type: PaintingCompletion.RestoredPainting, painting });
   });
