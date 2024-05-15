@@ -168,7 +168,9 @@ export class EditorComponent {
         type: 'module',
       });
       this.worker.onmessage = this.handleMessage.bind(this);
-      this.worker.postMessage({ type: 'initializeIndexedDB' });
+      this.worker.postMessage({
+        type: 'initializeIndexedDB',
+      });
     } else {
       throw new Error('Web Workers are not supported in this environment');
     }
@@ -213,6 +215,10 @@ export class EditorComponent {
   }
 
   handleRestoreHistory(event: MessageEvent) {
+    if (event.data.historyItems.length === 0) {
+      return;
+    }
+
     this.undoStack = event.data.historyItems;
     const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
     this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
@@ -232,8 +238,7 @@ export class EditorComponent {
   }
 
   hanldeSavePainting(event: MessageEvent) {
-    this.painting = event.data.painting;
-    this.location.replaceState(`/${this.painting.id}`);
+    this.location.replaceState(`/${event.data.id}`);
   }
 
   handleRestorePainting(event: MessageEvent) {
@@ -257,7 +262,7 @@ export class EditorComponent {
           height: this.canvasComponent?.canvas?.height ?? window.innerHeight,
         },
         item: event.item,
-        painting: this.painting
+        painting: this.painting,
       });
     }
   }
@@ -271,7 +276,7 @@ export class EditorComponent {
       this.worker.postMessage({
         type: 'popFromHistoryUntilHistoryItem',
         item: event.item,
-        painting: this.painting
+        painting: this.painting,
       });
     }
   }
@@ -286,8 +291,14 @@ export class EditorComponent {
 
   onResolutionChange(event: MatSelectChange) {
     this.painting.canvas.resolution = event.value;
-    this.painting.canvas.width = event.value === 'auto' ? window.innerWidth : parseInt(event.value.split('x')[0]);
-    this.painting.canvas.height = event.value === 'auto' ? window.innerHeight : parseInt(event.value.split('x')[1]);
+    this.painting.canvas.width =
+      event.value === 'auto'
+        ? window.innerWidth
+        : parseInt(event.value.split('x')[0]);
+    this.painting.canvas.height =
+      event.value === 'auto'
+        ? window.innerHeight
+        : parseInt(event.value.split('x')[1]);
     this.worker.postMessage({
       type: 'savePainting',
       painting: this.painting,
