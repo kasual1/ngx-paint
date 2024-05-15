@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { EditorComponent } from './editor/editor.component';
+import { EditorComponent } from './editor/components/editor.component';
 
 export const routes: Routes = [
   {

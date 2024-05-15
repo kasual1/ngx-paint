@@ -1,8 +1,9 @@
 /// <reference lib="webworker" />
 
 import { BrushOptions, HistoryItem } from 'lib';
-import { IndexedDb } from './indexeddb';
-import { HistoryItemHelper } from './history-item.helper';
+import { HistoryItemHelper } from '../helpers/history-item.helper';
+import { IndexedDbHelper } from '../helpers/indexeddb.helper';
+import { WorkerActionMessage } from '../enums/worker-action-message.enum';
 
 interface PixelDiff {
   x: number;
@@ -53,34 +54,24 @@ interface Painting {
   };
 }
 
-let indexedDb: IndexedDb;
+const messageHandlers: {[key in WorkerActionMessage]: (data: any) => void} = {
+  [WorkerActionMessage.InitializeIndexedDB]: initializeIndexedDB,
+  [WorkerActionMessage.PushToHistory]: pushToHistory,
+  [WorkerActionMessage.PopFromHistoryUntilHistoryItem]: popFromHistoryUntilHistoryItem,
+  [WorkerActionMessage.RestoreHistory]: restoreHistory,
+  [WorkerActionMessage.SavePainting]: savePainting,
+  [WorkerActionMessage.RestorePainting]: restorePainting,
+};
 
-addEventListener('message', ({ data }) => {
-  switch (data.type) {
-    case 'initializeIndexedDB':
-      initializeIndexedDB();
-      break;
-    case 'pushToHistory':
-      pushToHistory(data);
-      break;
-    case 'popFromHistoryUntilHistoryItem':
-      popFromHistoryUntilHistoryItem(data);
-      break;
-    case 'restoreHistory':
-      restoreHistory(data);
-      break;
-    case 'savePainting':
-      savePainting(data);
-      break;
-    case 'restorePainting':
-      restorePainting(data);
-      break;
-  }
+const defaultHandler = (data: any) => console.error(`No handler for message type "${data.type}"`);
+
+addEventListener('message', ({data}) => {
+  const handler = messageHandlers[data.type as WorkerActionMessage] || defaultHandler;
+  handler(data);
 });
 
 function initializeIndexedDB() {
-  indexedDb = new IndexedDb();
-  indexedDb.initialize().then(() => {
+  IndexedDbHelper.initialize().then(() => {
     postMessage({ type: 'initializeIndexedDB' });
   });
 }
@@ -93,7 +84,7 @@ function pushToHistory(data: PushToHistoryData) {
     compressedItem.timestamp
   );
 
-  indexedDb.saveObject('history', key, compressedItem).then((historyItem) => {
+  IndexedDbHelper.saveObject('history', key, compressedItem).then((historyItem) => {
     postMessage({ type: 'pushToHistory', item: historyItem });
   });
 }
@@ -106,7 +97,7 @@ function popFromHistoryUntilHistoryItem(
     data.item.timestamp
   );
 
-  indexedDb.deleteUntilKey('history', key).then(() => {
+  IndexedDbHelper.deleteUntilKey('history', key).then(() => {
     postMessage({ type: 'popFromHistoryUntilHistoryItem', item: data.item });
   });
 }
@@ -121,7 +112,7 @@ function restoreHistory(data: RestoreHistoryData) {
     new Date()
   );
 
-  indexedDb
+  IndexedDbHelper
     .getObjectsWithinRange('history', lowerBound, upperBound)
     .then((compressedHistoryItems) => {
       const historyItems: HistoryItem[] = [];
@@ -140,7 +131,7 @@ function restoreHistory(data: RestoreHistoryData) {
 }
 
 function savePainting(data: SavePaintingData) {
-  indexedDb
+  IndexedDbHelper
     .saveObject('painting', data.painting.id, data.painting)
     .then((id) => {
       postMessage({
@@ -151,7 +142,7 @@ function savePainting(data: SavePaintingData) {
 }
 
 function restorePainting(data: RestorePaintingData) {
-  indexedDb.getObject('painting', data.id).then((painting) => {
+  IndexedDbHelper.getObject('painting', data.id).then((painting) => {
     postMessage({ type: 'restorePainting', painting });
   });
 }

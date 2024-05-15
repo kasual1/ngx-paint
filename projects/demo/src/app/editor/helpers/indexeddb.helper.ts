@@ -1,8 +1,8 @@
 
-export class IndexedDb {
-  private db: IDBDatabase | null = null;
+export class IndexedDbHelper {
+  private static db: IDBDatabase | null = null;
 
-  async initialize(): Promise<void> {
+  static async initialize(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const request = indexedDB.open('PAINT_OVER_DB', 1);
 
@@ -28,7 +28,7 @@ export class IndexedDb {
     });
   }
 
-  async saveObject(storeName: string, key: string, value: any): Promise<any> {
+  static async saveObject(storeName: string, key: string, value: any): Promise<any> {
     if (!this.db) {
       console.error('Database not opened');
       return;
@@ -44,7 +44,7 @@ export class IndexedDb {
     });
   }
 
-  async getObject(storeName: string, key: string): Promise<any> {
+  static async getObject(storeName: string, key: string): Promise<any> {
     if (!this.db) {
       console.error('Database not opened');
       return;
@@ -60,7 +60,7 @@ export class IndexedDb {
     });
   }
 
-  async getObjectsWithinRange(storeName: string, lowerBound: string, upperBound: string): Promise<any[]> {
+  static async getObjectsWithinRange(storeName: string, lowerBound: string, upperBound: string): Promise<any[]> {
     if (!this.db) {
       console.error('Database not opened');
       return [];
@@ -77,7 +77,7 @@ export class IndexedDb {
     });
   }
 
-  async deleteUntilKey(storeName: string, key: string): Promise<void> {
+  static async deleteUntilKey(storeName: string, key: string): Promise<void> {
     if (!this.db) {
       console.error('Database not opened');
       return;

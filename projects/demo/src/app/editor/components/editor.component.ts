@@ -14,7 +14,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Location } from '@angular/common';
-import { UuidService } from '../uuid.service';
+import { UuidService } from '../../uuid.service';
 
 interface Painting {
   id: string;
@@ -164,7 +164,7 @@ export class EditorComponent {
 
   initializeWorker() {
     if (typeof Worker !== 'undefined') {
-      this.worker = new Worker(new URL('./editor.worker', import.meta.url), {
+      this.worker = new Worker(new URL('../workers/editor.worker', import.meta.url), {
         type: 'module',
       });
       this.worker.onmessage = this.handleMessage.bind(this);
