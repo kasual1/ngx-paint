@@ -4,6 +4,7 @@ import { BrushOptions, HistoryItem } from 'lib';
 import { HistoryItemHelper } from '../helpers/history-item.helper';
 import { IndexedDbHelper } from '../helpers/indexeddb.helper';
 import { WorkerActionMessage } from '../enums/worker-action-message.enum';
+import { WorkerCompletionMessage } from '../enums/worker-completion-message.enum';
 
 interface PixelDiff {
   x: number;
@@ -72,7 +73,7 @@ addEventListener('message', ({data}) => {
 
 function initializeIndexedDB() {
   IndexedDbHelper.initialize().then(() => {
-    postMessage({ type: 'initializeIndexedDB' });
+    postMessage({ type: WorkerCompletionMessage.InitializedIndexedDB });
   });
 }
 
@@ -85,7 +86,7 @@ function pushToHistory(data: PushToHistoryData) {
   );
 
   IndexedDbHelper.saveObject('history', key, compressedItem).then((historyItem) => {
-    postMessage({ type: 'pushToHistory', item: historyItem });
+    postMessage({ type: WorkerCompletionMessage.PushedToHistory, item: historyItem });
   });
 }
 
@@ -98,7 +99,7 @@ function popFromHistoryUntilHistoryItem(
   );
 
   IndexedDbHelper.deleteUntilKey('history', key).then(() => {
-    postMessage({ type: 'popFromHistoryUntilHistoryItem', item: data.item });
+    postMessage({ type: WorkerCompletionMessage.PoppedFromHistoryUntilHistoryItem, item: data.item });
   });
 }
 
@@ -126,7 +127,7 @@ function restoreHistory(data: RestoreHistoryData) {
         historyItems.push(item);
       }
 
-      postMessage({ type: 'restoreHistory', historyItems });
+      postMessage({ type: WorkerCompletionMessage.RestoredHistory, historyItems });
     });
 }
 
@@ -135,7 +136,7 @@ function savePainting(data: SavePaintingData) {
     .saveObject('painting', data.painting.id, data.painting)
     .then((id) => {
       postMessage({
-        type: 'savePainting',
+        type: WorkerCompletionMessage.SavedPainting,
         id
       });
     });
@@ -143,6 +144,6 @@ function savePainting(data: SavePaintingData) {
 
 function restorePainting(data: RestorePaintingData) {
   IndexedDbHelper.getObject('painting', data.id).then((painting) => {
-    postMessage({ type: 'restorePainting', painting });
+    postMessage({ type: WorkerCompletionMessage.RestoredPainting, painting });
   });
 }

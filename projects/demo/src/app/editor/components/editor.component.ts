@@ -15,6 +15,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Location } from '@angular/common';
 import { UuidService } from '../../uuid.service';
+import { WorkerCompletionMessage } from '../enums/worker-completion-message.enum';
 
 interface Painting {
   id: string;
@@ -158,6 +159,15 @@ export class EditorComponent {
     }
   }
 
+  messageHandlers: { [key in WorkerCompletionMessage]: (event: MessageEvent) => void } = {
+    [WorkerCompletionMessage.InitializedIndexedDB]: this.handleInitializeIndexedDB.bind(this),
+    [WorkerCompletionMessage.RestoredHistory]: this.handleRestoreHistory.bind(this),
+    [WorkerCompletionMessage.PushedToHistory]: this.handlePushToHistory.bind(this),
+    [WorkerCompletionMessage.PoppedFromHistoryUntilHistoryItem]: this.handlePopFromHistoryUntilHistoryItem.bind(this),
+    [WorkerCompletionMessage.SavedPainting]: this.hanldeSavePainting.bind(this),
+    [WorkerCompletionMessage.RestoredPainting]: this.handleRestorePainting.bind(this),
+  };
+
   constructor(private location: Location, private uuidService: UuidService) {
     this.initializeWorker();
   }
@@ -177,25 +187,11 @@ export class EditorComponent {
   }
 
   handleMessage(event: MessageEvent) {
-    switch (event.data.type) {
-      case 'initializeIndexedDB':
-        this.handleInitializeIndexedDB();
-        break;
-      case 'restoreHistory':
-        this.handleRestoreHistory(event);
-        break;
-      case 'pushToHistory':
-        this.handlePushToHistory(event);
-        break;
-      case 'popFromHistoryUntilHistoryItem':
-        this.handlePopFromHistoryUntilHistoryItem(event);
-        break;
-      case 'savePainting':
-        this.hanldeSavePainting(event);
-        break;
-      case 'restorePainting':
-        this.handleRestorePainting(event);
-        break;
+    const handler = this.messageHandlers[event.data.type as WorkerCompletionMessage];
+    if (handler) {
+      handler(event);
+    } else {
+      console.error(`No handler for message type "${event.data.type}"`);
     }
   }
 
@@ -226,7 +222,7 @@ export class EditorComponent {
       'Brush',
       mostRecentHistoryItem.brushOptions
     );
-    console.info(`Restored history in ${event.data.time}ms`);
+    console.info(`Restored history`);
   }
 
   handlePushToHistory(event: MessageEvent) {
