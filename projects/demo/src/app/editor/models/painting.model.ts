@@ -1,4 +1,4 @@
-interface Painting {
+export interface Painting {
   id: string;
   title: string;
   canvas: {

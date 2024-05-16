@@ -1,9 +1,6 @@
 import {
   Component,
   Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges,
   ViewChild,
 } from '@angular/core';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
@@ -24,16 +21,7 @@ import { Location } from '@angular/common';
 import { UuidService } from '../../uuid.service';
 import { IndexedDbHelper as IndexedDbService } from '../../core/services/indexeddb.service';
 import { HistoryItemService } from '../services/history-item.service';
-
-interface Painting {
-  id: string;
-  title: string;
-  canvas: {
-    resolution: string;
-    width: number;
-    height: number;
-  };
-}
+import { Painting } from '../models/painting.model';
 
 @Component({
   selector: 'app-editor',
