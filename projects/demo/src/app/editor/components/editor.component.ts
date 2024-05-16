@@ -1,4 +1,11 @@
-import { Component, Input, ViewChild } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnChanges,
+  OnInit,
+  SimpleChanges,
+  ViewChild,
+} from '@angular/core';
 import { MatSelectChange, MatSelectModule } from '@angular/material/select';
 import {
   Brush,
@@ -15,10 +22,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Location } from '@angular/common';
 import { UuidService } from '../../uuid.service';
-import { HistoryCompletion } from '../enums/history-completion.enum';
-import { PaintingCompletion } from '../enums/painting-completion.enum copy';
-import { PaintingAction } from '../enums/painting-action.enum copy';
-import { HistoryAction } from '../enums/history-action.enum';
+import { IndexedDbHelper as IndexedDbService } from '../../core/services/indexeddb.service';
+import { HistoryItemService } from '../services/history-item.service';
 
 interface Painting {
   id: string;
@@ -46,6 +51,7 @@ interface Painting {
   ],
   providers: [Location],
   template: `
+    @if(painting !== undefined){
     <div class="top-panel">
       <mat-form-field>
         <mat-label>Title</mat-label>
@@ -78,6 +84,7 @@ interface Painting {
       (historyChange)="onHistoryChange($event)"
       (redoStackChange)="onRedoStackChange($event)"
     ></ngx-paint>
+    }
   `,
   styles: `
       :host {
@@ -101,14 +108,16 @@ interface Painting {
 })
 export class EditorComponent {
   @Input()
-  id: string | undefined;
+  set id(id: string | undefined) {
+    if (id === undefined) {
+      this.createPainting();
+    } else {
+      this.loadPainting(id);
+    }
+  }
 
   @ViewChild(CanvasComponent)
   canvasComponent!: CanvasComponent;
-
-  historyWorker!: Worker;
-
-  paintingWorker!: Worker;
 
   undoStack: HistoryItem[] = [];
 
@@ -159,115 +168,84 @@ export class EditorComponent {
     }
   }
 
-  constructor(private location: Location, private uuidService: UuidService) {
-    this.initializeWorkers();
-  }
+  constructor(
+    private indexedDbService: IndexedDbService,
+    private location: Location,
+    private uuidService: UuidService,
+    private historyItemService: HistoryItemService
+  ) {}
 
-  initializeWorkers() {
-    if (typeof Worker !== 'undefined') {
-      this.initializeHistoryWorker();
-      this.initializePaintingWorker();
-    } else {
-      throw new Error('Web Workers are not supported in this environment');
-    }
-  }
-
-  initializeHistoryWorker() {
-    this.historyWorker = new Worker(
-      new URL('../workers/history.worker', import.meta.url),
-      {
-        type: 'module',
-      }
+  async createPainting() {
+    this.painting = {
+      id: this.uuidService.createUuid(),
+      title: 'Untitled',
+      canvas: {
+        resolution: '800x600',
+        width: 800,
+        height: 600,
+      },
+    };
+    const id = await this.indexedDbService.saveObject(
+      'painting',
+      this.painting.id,
+      this.painting
     );
 
-    const historyCompletionHandlers: {
-      [key in HistoryCompletion]: (event: MessageEvent) => void;
-    } = {
-      [HistoryCompletion.Initialized]: () => {},
-      [HistoryCompletion.RestoredHistory]: this.handleRestoredHistory.bind(this),
-      [HistoryCompletion.PushedToHistory]: () => {},
-      [HistoryCompletion.PoppedFromHistoryUntilHistoryItem]: () => {},
-    };
-
-    this.historyWorker.onmessage = (event: MessageEvent) => {
-      const handler =
-        historyCompletionHandlers[event.data.type as HistoryCompletion];
-      if (handler) {
-        handler(event);
-      } else {
-        console.error(`No handler for message type "${event.data.type}"`);
-      }
-    };
-
-    this.historyWorker.postMessage({
-      type: HistoryAction.Initialize,
-    });
+    this.location.replaceState(`/${id}`);
   }
 
-  initializePaintingWorker() {
-    this.paintingWorker = new Worker(
-      new URL('../workers/painting.worker', import.meta.url),
-      {
-        type: 'module',
-      }
+  async loadPainting(id: string) {
+    this.painting = await this.indexedDbService.getObject('painting', id);
+
+    if (!this.painting) {
+      this.createPainting();
+    }
+
+    const lowerBound = this.historyItemService.buildHistoryKey(
+      this.painting.id,
+      new Date(0)
     );
 
-    const paintingCompletionHandlers: {
-      [key in PaintingCompletion]: (event: MessageEvent) => void;
-    } = {
-      [PaintingCompletion.Initialized]: this.handlePaintingWorkerInitialized.bind(this),
-      [PaintingCompletion.SavedPainting]: this.handleSavedPainting.bind(this),
-      [PaintingCompletion.RestoredPainting]:
-        this.handleRestoredPainting.bind(this),
-    };
+    const upperBound = this.historyItemService.buildHistoryKey(
+      this.painting.id,
+      new Date()
+    );
 
-    this.paintingWorker.onmessage = (event: MessageEvent) => {
-      const handler =
-        paintingCompletionHandlers[event.data.type as PaintingCompletion];
-      if (handler) {
-        handler(event);
-      } else {
-        console.error(`No handler for message type "${event.data.type}"`);
-      }
-    };
+    const compressedHistoryItems =
+      await this.indexedDbService.getObjectsWithinRange(
+        'history',
+        lowerBound,
+        upperBound
+      );
 
-    this.paintingWorker.postMessage({
-      type: PaintingAction.Initialize,
-    });
-  }
+    const historyItems =
+      this.historyItemService.convertCompressedHistoryItemsToHistoryItems(
+        compressedHistoryItems,
+        this.painting.canvas.width,
+        this.painting.canvas.height
+      );
 
-  handlePaintingWorkerInitialized() {
-    if (this.id === undefined) {
-      this.paintingWorker.postMessage({
-        type: PaintingAction.SavePainting,
-        painting: this.painting,
-      });
-    } else {
-      this.paintingWorker.postMessage({
-        type: PaintingAction.RestorePainting,
-        id: this.id,
-      });
+    this.undoStack = historyItems;
+
+    if (this.undoStack.length > 0) {
+      const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
+      this.canvasComponent.drawImageDataToCanvas(
+        mostRecentHistoryItem.snapshot
+      );
+      this.canvasComponent.brush = new Brush(
+        'Brush',
+        mostRecentHistoryItem.brushOptions
+      );
     }
-  }
-
-  handleSavedPainting(event: MessageEvent) {
-    this.location.replaceState(`/${event.data.id}`);
-  }
-
-  handleRestoredPainting(event: MessageEvent) {
-    this.painting = event.data.painting;
-    this.historyWorker.postMessage({
-      type: HistoryAction.RestoreHistory,
-      painting: this.painting,
-    });
   }
 
   onTitleChange(event: Event) {
     this.painting.title = (event.target as HTMLInputElement).value;
-    this.paintingWorker.postMessage({
-      type: PaintingAction.SavePainting,
-      painting: this.painting,
-    });
+    this.indexedDbService.saveObject(
+      'painting',
+      this.painting.id,
+      this.painting
+    );
   }
 
   onResolutionChange(event: MatSelectChange) {
@@ -280,49 +258,35 @@ export class EditorComponent {
       event.value === 'auto'
         ? window.innerHeight
         : parseInt(event.value.split('x')[1]);
-    this.paintingWorker.postMessage({
-      type: PaintingAction.SavePainting,
-      painting: this.painting,
-    });
-  }
-
-
-  handleRestoredHistory(event: MessageEvent) {
-    if (event.data.historyItems.length === 0) {
-      return;
-    }
-
-    this.undoStack = event.data.historyItems;
-    const mostRecentHistoryItem = this.undoStack[this.undoStack.length - 1];
-    this.canvasComponent.drawImageDataToCanvas(mostRecentHistoryItem.snapshot);
-    this.canvasComponent.brush = new Brush(
-      'Brush',
-      mostRecentHistoryItem.brushOptions
+    this.indexedDbService.saveObject(
+      'painting',
+      this.painting.id,
+      this.painting
     );
-    console.info(`Restored history`);
   }
 
   onHistoryChange(event: StackEvent) {
-    if (event.type === 'push') {
-      this.historyWorker.postMessage({
-        type: HistoryAction.PushToHistory,
-        canvas: {
-          width: this.canvasComponent?.canvas?.width ?? window.innerWidth,
-          height: this.canvasComponent?.canvas?.height ?? window.innerHeight,
-        },
-        item: event.item,
-        painting: this.painting,
-      });
+    if (event.type === 'push' && event.item) {
+      const compressedItem =
+        this.historyItemService.createCompressedHistoryItem(event.item);
+
+      const key = this.historyItemService.buildHistoryKey(
+        this.painting.id,
+        event.item.timestamp
+      );
+
+      this.indexedDbService.saveObject('history', key, compressedItem);
     }
   }
 
   onRedoStackChange(event: StackEvent) {
-    if (event.type === 'clear') {
-      this.historyWorker.postMessage({
-        type: HistoryAction.PopFromHistoryUntilHistoryItem,
-        item: event.item,
-        painting: this.painting,
-      });
+    if (event.type === 'clear' && event.item) {
+      const key = this.historyItemService.buildHistoryKey(
+        this.painting.id,
+        event.item.timestamp
+      );
+
+      this.indexedDbService.deleteUntilKey('history', key);
     }
   }
 }

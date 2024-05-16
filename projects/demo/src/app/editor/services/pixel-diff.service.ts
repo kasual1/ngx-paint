@@ -1,11 +1,11 @@
-export interface PixelDiff {
-  x: number;
-  y: number;
-  color: string;
-}
+import { Injectable } from "@angular/core";
+import { PixelDiff } from "../models/pixel-diff.model";
 
-export class PixelDiffHelper {
-  static computePixelDiffs(
+@Injectable({
+  providedIn: 'root',
+})
+export class PixelDiffService {
+  computePixelDiffs(
     image1?: ImageData,
     image2?: ImageData
   ): PixelDiff[] {
@@ -37,7 +37,7 @@ export class PixelDiffHelper {
     return pixelDiffs;
   }
 
-  static convertPixelDiffsToImageData(
+  convertPixelDiffsToImageData(
     diffs: PixelDiff[],
     previousImage: ImageData | undefined,
     width: number,

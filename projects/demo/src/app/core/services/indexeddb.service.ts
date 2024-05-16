@@ -1,9 +1,13 @@
+import { Injectable } from '@angular/core';
 
+@Injectable({
+  providedIn: 'root',
+})
 export class IndexedDbHelper {
-  private static db: IDBDatabase | null = null;
+  private db: IDBDatabase | null = null;
 
-  static async initialize(): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
+  async initialize(): Promise<void> {
+    return await new Promise<void>((resolve, reject) => {
       const request = indexedDB.open('PAINT_OVER_DB', 1);
 
       request.onupgradeneeded = (event) => {
@@ -13,7 +17,7 @@ export class IndexedDbHelper {
         }
 
         if (!this.db.objectStoreNames.contains('painting')) {
-          this.db.createObjectStore('painting', { autoIncrement: false});
+          this.db.createObjectStore('painting', { autoIncrement: false });
         }
       };
 
@@ -28,7 +32,7 @@ export class IndexedDbHelper {
     });
   }
 
-  static async saveObject(storeName: string, key: string, value: any): Promise<any> {
+  async saveObject(storeName: string, key: string, value: any): Promise<any> {
     if (!this.db) {
       console.error('Database not opened');
       return;
@@ -44,7 +48,7 @@ export class IndexedDbHelper {
     });
   }
 
-  static async getObject(storeName: string, key: string): Promise<any> {
+  async getObject(storeName: string, key: string): Promise<any> {
     if (!this.db) {
       console.error('Database not opened');
       return;
@@ -60,7 +64,11 @@ export class IndexedDbHelper {
     });
   }
 
-  static async getObjectsWithinRange(storeName: string, lowerBound: string, upperBound: string): Promise<any[]> {
+  async getObjectsWithinRange(
+    storeName: string,
+    lowerBound: string,
+    upperBound: string
+  ): Promise<any[]> {
     if (!this.db) {
       console.error('Database not opened');
       return [];
@@ -77,7 +85,7 @@ export class IndexedDbHelper {
     });
   }
 
-  static async deleteUntilKey(storeName: string, key: string): Promise<void> {
+  async deleteUntilKey(storeName: string, key: string): Promise<void> {
     if (!this.db) {
       console.error('Database not opened');
       return;
@@ -106,6 +114,4 @@ export class IndexedDbHelper {
       };
     });
   }
-
-
 }
