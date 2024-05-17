@@ -16,13 +16,13 @@ import { CommonModule } from '@angular/common';
 import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
 import { CursorService } from './cursor.service';
-import { timestamp } from 'rxjs';
+import { ZoomControlsComponent } from './zoom-controls.component';
 
 @Component({
   selector: 'ngx-paint',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [ActionPanelComponent, CommonModule],
+  imports: [ActionPanelComponent, ZoomControlsComponent, CommonModule],
   template: `
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300"
@@ -48,15 +48,10 @@ import { timestamp } from 'rxjs';
       (mouseleave)="onMouseLeaveActionPanel()"
     ></ngx-paint-action-panel>
 
-    <div class="debug-panel">
-      <h1>Debug panel</h1>
-      <pre>Undo Stack: {{ undoStack.length }}</pre>
-      <pre>Redo Stack: {{ redoStack.length }}</pre>
-      <pre>Window Width: {{ windowWidth }}</pre>
-      <pre>Window Height: {{ windowHeight }}</pre>
-      <pre>Selected Brush: {{ brush.name }}</pre>
-      <pre>Selected Brush Size: {{ brush.size }}</pre>
-    </div>
+    <ngx-paint-zoom-controls
+      (zoomIn)="onZoomIn()"
+      (zoomOut)="onZoomOut()"
+    ></ngx-paint-zoom-controls>
   `,
   styles: `
 
@@ -90,23 +85,40 @@ import { timestamp } from 'rxjs';
       left: 0;
     }
 
-    .debug-panel{
+    ngx-paint-zoom-controls {
       position: fixed;
       bottom: 0;
       left: 0;
-      background-color: white;
-      padding: 12px;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      background-color: rgba(240, 240, 240, 0.85);
-      backdrop-filter: blur(10px);
+      margin: 12px;
     }
   `,
 })
 export class CanvasComponent implements AfterViewInit, OnChanges {
   @HostListener('window:resize', ['$event'])
   onWindowResize(event: Event) {
-    this.resizeCanvas();
+    if (this.canvas) {
+      // Calculate the zoom factor to fit the canvas on the screen
+      const zoomFactorX = window.innerWidth / this.canvas.width;
+      const zoomFactorY = window.innerHeight / this.canvas.height;
+      this.zoomFactor = Math.min(zoomFactorX, zoomFactorY);
+
+      // Adjust the canvas size
+      this.canvas.width = this.canvas.width * this.zoomFactor;
+      this.canvas.height = this.canvas.height * this.zoomFactor;
+
+      this.canvas.width = window.innerWidth;
+      this.canvas.height = window.innerHeight;
+      this.canvas.style.position = 'absolute';
+      this.canvas.style.left = '50%';
+      this.canvas.style.top = '50%';
+      this.canvas.style.transform = 'translate(-50%, -50%)';
+      this.applyZoom();
+    }
+  }
+
+  @HostListener('wheel', ['$event'])
+  onWheel(event: WheelEvent) {
+    this.onWheelZoom(event);
   }
 
   @Input()
@@ -140,6 +152,8 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
 
   previousCanvas: HTMLCanvasElement | null = null;
 
+  currentImageData: ImageData | null = null;
+
   context: CanvasRenderingContext2D | null = null;
 
   brush: Brush = new Brush('Brush', {
@@ -150,6 +164,14 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
   mouseDown = false;
 
   lastUndoRedoAction: 'undo' | 'redo' | null = null;
+
+  zoomFactor = 1.0;
+
+  zoomSpeed = 0.1;
+
+  originalWidth = this.width;
+
+  originalHeight = this.height;
 
   get cursorCircleStyle() {
     return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
@@ -232,8 +254,12 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
       }
 
       this.previousCanvas = CanvasHelper.copyCanvas(this.canvas!);
-      const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
-      const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
+      const x =
+        (event.clientX - this.canvasRef.nativeElement.offsetLeft) /
+        this.zoomFactor;
+      const y =
+        (event.clientY - this.canvasRef.nativeElement.offsetTop) /
+        this.zoomFactor;
       this.brush.down(x, y);
     }
 
@@ -242,8 +268,12 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
 
   onMouseMove(event: MouseEvent) {
     if (this.mouseDown && this.canDraw) {
-      const x = event.clientX - this.canvasRef.nativeElement.offsetLeft;
-      const y = event.clientY - this.canvasRef.nativeElement.offsetTop;
+      const x =
+        (event.clientX - this.canvasRef.nativeElement.offsetLeft) /
+        this.zoomFactor;
+      const y =
+        (event.clientY - this.canvasRef.nativeElement.offsetTop) /
+        this.zoomFactor;
       this.brush.draw(this.context!, x, y);
     }
 
@@ -398,15 +428,73 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
     this.lastUndoRedoAction = null;
   }
 
-  private generateUuid(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
+  onWheelZoom(event: WheelEvent) {
+    if (event.ctrlKey && event.deltaMode === 0 && event.deltaX === 0) {
+      event.preventDefault();
+      if (event.deltaY > 0) {
+        this.onZoomOut();
+      } else {
+        this.onZoomIn();
       }
-    );
+    }
+  }
+
+  onZoomIn() {
+    this.zoomFactor += this.zoomSpeed;
+    this.applyZoom();
+  }
+
+  onZoomOut() {
+    this.zoomFactor -= this.zoomSpeed;
+    this.applyZoom();
+  }
+
+  applyZoom() {
+    if (this.canvas && this.context) {
+      this.zoomFactor = Math.max(0.1, Math.min(5.0, this.zoomFactor));
+
+      if (this.currentImageData === null) {
+        this.currentImageData = this.context!.getImageData(
+          0,
+          0,
+          this.canvas!.width,
+          this.canvas!.height
+        );
+
+        this.originalWidth = this.canvas!.width;
+        this.originalHeight = this.canvas!.height;
+      }
+
+      this.canvas!.width = this.originalWidth * this.zoomFactor;
+      this.canvas!.height = this.originalHeight * this.zoomFactor;
+
+      this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+
+      // const rect = this.canvas.getBoundingClientRect();
+      // const x = this.cursorService.cursorX - rect.left;
+      // const y = this.cursorService.cursorY - rect.top;
+
+      this.context.setTransform(1, 0, 0, 1, 0, 0);
+      this.context.scale(this.zoomFactor, this.zoomFactor);
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = this.canvas!.width;
+      tempCanvas.height = this.canvas!.height;
+
+      tempCanvas.getContext('2d')!.putImageData(this.currentImageData, 0, 0);
+
+      this.context.drawImage(
+        tempCanvas,
+        0,
+        0,
+        tempCanvas.width,
+        tempCanvas.height,
+        0,
+        0,
+        this.canvas!.width,
+        this.canvas!.height
+      );
+    }
   }
 }
 

@@ -49,20 +49,6 @@ import { Painting } from '../models/painting.model';
           (input)="onTitleChange($event)"
         />
       </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Select</mat-label>
-        <mat-select
-          [value]="painting.canvas.resolution"
-          (selectionChange)="onResolutionChange($event)"
-        >
-          @for(resolution of resolutionOptions; track resolution.value){
-          <mat-option value="{{ resolution.value }}">{{
-            resolution.label
-          }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
     </div>
 
     <ngx-paint
@@ -84,11 +70,13 @@ import { Painting } from '../models/painting.model';
     }
 
     .top-panel{
-      position: absolute;
+      position: fixed;
       top: 0;
+      left: 0;
+      width: 100%;
       z-index: 1;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       gap: 10px;
       margin: 12px;
     }
@@ -118,25 +106,6 @@ export class EditorComponent {
       height: 600,
     },
   };
-
-  resolutionOptions = [
-    {
-      label: '1920x1080',
-      value: '1920x1080',
-    },
-    {
-      label: '1280x720',
-      value: '1280x720',
-    },
-    {
-      label: '800x600',
-      value: '800x600',
-    },
-    {
-      label: 'Auto',
-      value: 'auto',
-    },
-  ];
 
   get canvasWidth() {
     switch (this.painting.canvas.resolution) {
