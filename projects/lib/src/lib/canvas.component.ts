@@ -17,12 +17,15 @@ import { Brush, BrushOptions } from './brushes/brush.class';
 import { CanvasHelper } from './helper/canvas.helper';
 import { CursorService } from './cursor.service';
 import { ZoomControlsComponent } from './zoom-controls.component';
+import { NotificationComponent } from './notification/notification.component';
+import { NotificationService } from './notification/notification.service';
+import { NotificationDirective } from './notification/notification.directive';
 
 @Component({
   selector: 'ngx-paint',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [ActionPanelComponent, ZoomControlsComponent, CommonModule],
+  imports: [ActionPanelComponent, ZoomControlsComponent, NotificationComponent, NotificationDirective, CommonModule],
   template: `
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300"
@@ -52,6 +55,8 @@ import { ZoomControlsComponent } from './zoom-controls.component';
       (zoomIn)="onZoomIn()"
       (zoomOut)="onZoomOut()"
     ></ngx-paint-zoom-controls>
+
+    <div ngxPaintNotification></div>
   `,
   styles: `
 
@@ -96,24 +101,27 @@ import { ZoomControlsComponent } from './zoom-controls.component';
 export class CanvasComponent implements AfterViewInit, OnChanges {
   @HostListener('window:resize', ['$event'])
   onWindowResize(event: Event) {
-    if (this.canvas) {
-      // Calculate the zoom factor to fit the canvas on the screen
-      const zoomFactorX = window.innerWidth / this.canvas.width;
-      const zoomFactorY = window.innerHeight / this.canvas.height;
-      this.zoomFactor = Math.min(zoomFactorX, zoomFactorY);
+    clearTimeout(this.resizeTimeout);
+    this.resizeTimeout = setTimeout(() => {
+      if (this.canvas) {
+        // Calculate the zoom factor to fit the canvas on the screen
+        const zoomFactorX = window.innerWidth / this.canvas.width;
+        const zoomFactorY = window.innerHeight / this.canvas.height;
+        this.zoomFactor = Math.min(zoomFactorX, zoomFactorY);
 
-      // Adjust the canvas size
-      this.canvas.width = this.canvas.width * this.zoomFactor;
-      this.canvas.height = this.canvas.height * this.zoomFactor;
+        // Adjust the canvas size
+        this.canvas.width = this.canvas.width * this.zoomFactor;
+        this.canvas.height = this.canvas.height * this.zoomFactor;
 
-      this.canvas.width = window.innerWidth;
-      this.canvas.height = window.innerHeight;
-      this.canvas.style.position = 'absolute';
-      this.canvas.style.left = '50%';
-      this.canvas.style.top = '50%';
-      this.canvas.style.transform = 'translate(-50%, -50%)';
-      this.applyZoom();
-    }
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.left = '50%';
+        this.canvas.style.top = '50%';
+        this.canvas.style.transform = 'translate(-50%, -50%)';
+        this.applyZoom();
+      }
+    }, 50);
   }
 
   @HostListener('wheel', ['$event'])
@@ -173,6 +181,8 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
 
   originalHeight = this.height;
 
+  resizeTimeout: any;
+
   get cursorCircleStyle() {
     return this.cursorService.getCursorCircleStyle(this.brush, this.mouseDown);
   }
@@ -189,7 +199,7 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
     return this.context && this.actionPanel.active === false;
   }
 
-  constructor(public cursorService: CursorService) {}
+  constructor(public cursorService: CursorService, private notificationService: NotificationService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['width'] || changes['height']) {
@@ -442,11 +452,13 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
   onZoomIn() {
     this.zoomFactor += this.zoomSpeed;
     this.applyZoom();
+    this.notificationService.notify(`Zoom: ${Math.round(this.zoomFactor * 100)}%`);
   }
 
   onZoomOut() {
     this.zoomFactor -= this.zoomSpeed;
     this.applyZoom();
+    this.notificationService.notify(`Zoom: ${Math.round(this.zoomFactor * 100)}%`);
   }
 
   applyZoom() {
@@ -469,10 +481,6 @@ export class CanvasComponent implements AfterViewInit, OnChanges {
       this.canvas!.height = this.originalHeight * this.zoomFactor;
 
       this.context!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
-
-      // const rect = this.canvas.getBoundingClientRect();
-      // const x = this.cursorService.cursorX - rect.left;
-      // const y = this.cursorService.cursorY - rect.top;
 
       this.context.setTransform(1, 0, 0, 1, 0, 0);
       this.context.scale(this.zoomFactor, this.zoomFactor);
